@@ -1,5 +1,3 @@
 # CART_metabolomics
 
-This is a test repository.
-
-This is a line from RStudio.
+This respository is work in progress. It containes the R code for a study investigating the use of serum metabolomics as predictors for response and toxicity of patients treated with CAR-T cell therapy.
