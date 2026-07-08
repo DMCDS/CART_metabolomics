@@ -1,5 +1,24 @@
-### Patient Characteristics
+# ==================================================================================================
+# 1_surv.R
+# Purpose: Discovery cohort baseline analyses focused on patient/body-composition characteristics,
+#          baseline metabolomics, and survival-associated lipid signatures.
+# Main inputs:
+#   - Input_files/all_master.xlsx
+#   - Input_files/0_CART_Metabolomics_Data_MASTER.xlsx
+#   - Input_files/1_validation_metabolomics_master.xlsx
+# Main outputs:
+#   - Intermediate normalized/filtered baseline files written to Input_files/
+#   - Manuscript figures written to Figures_Manuscript/
+# Dependencies:
+#   - Run source("0_packages.R") first.
+#   - Downstream scripts reuse objects created here, especially all_master and baseline metabolite vectors.
+# Notes for reviewers/readers:
+#   - "BC" denotes body-composition variables, including BMI, waist, WtHR, VAT, SAT, and TAT.
+#   - Metabolomics normalization is performed with MetaboAnalystR.
+#   - Survival models use Cox proportional hazards regression; several later plots summarize metabolite classes.
+# ==================================================================================================
 
+### Data wrangling and patient characteristics ----
 all_master <- read.xlsx("Input_files/all_master.xlsx")
 all_master <- all_master |> filter(Entity != "ALL")
 
@@ -15,239 +34,8 @@ all_master |> count(Entity)
 
 all_master |> count(Responder)
 
-### Analysis of BC variables on CAR-T outcomes
-
-## BC variables between dichotomized responses 
-# BC variables vs Response
-all_master |>
-  filter(!is.na(Responder))|>
-  pivot_longer(cols = c("BMI", "Waist", "WtHR", "TAT", "SAT", "VAT", "PMI", "SMI", "STLV"), 
-               names_to = "BC", 
-               values_to = "BC_values") |>
-  filter(BC %in% c("BMI", "Waist", "WtHR", "VAT", "SAT", "TAT"))|>
-  mutate(BC = factor(BC, levels = c("BMI", "Waist", "WtHR", "VAT", "SAT", "TAT")))|>
-  ggplot(aes(x=Responder,y=BC_values))+
-  geom_boxplot()+
-  geom_jitter(alpha = 0.4)+
-  geom_pwc(method="wilcox_test", bracket.nudge.y = -0.1)+
-  scale_x_discrete(labels = c("NR", "R"))+
-  labs(x="", y="BC value")+
-  facet_wrap(vars(BC), scales = "free_y")+
-  theme_classic()
-
-# BC variables vs CRS
-all_master |>
-  pivot_longer(cols = c("BMI", "Waist", "WtHR", "TAT", "SAT", "VAT", "PMI", "SMI", "STLV"), 
-               names_to = "BC", 
-               values_to = "BC_values") |>
-  ggplot(aes(x=Maximaler.CRS.Grad,y=BC_values))+
-  geom_boxplot()+
-  geom_jitter()+
-  geom_pwc(method="wilcox_test", ref.group = "0")+
-  facet_wrap(vars(BC), scales = "free_y")
-
-# BC variables vs CRS_high
-all_master |>
-  filter(Entity != "MM")|>
-  pivot_longer(cols = c("BMI", "Waist", "WtHR", "TAT", "SAT", "VAT", "PMI", "SMI", "STLV"), 
-               names_to = "BC", 
-               values_to = "BC_values") |>
-  filter(BC %in% c("BMI", "Waist", "WtHR", "VAT", "SAT", "TAT"))|>
-  mutate(BC = factor(BC, levels = c("BMI", "Waist", "WtHR", "VAT", "SAT", "TAT")))|>
-  ggplot(aes(x=as.factor(CRS_high),y=BC_values))+
-  geom_boxplot()+
-  geom_jitter(alpha = 0.4)+
-  geom_pwc(method="wilcox_test", bracket.nudge.y = -0.1)+
-  scale_x_discrete(labels = c("CRS 0-1", "CRS >=2"))+
-  labs(x="", y="BC value")+
-  facet_wrap(vars(BC), scales = "free_y")+
-  theme_classic()
-
-# BC variables vs ICANS_high (Control condition)
-all_master |>
-  pivot_longer(cols = c("BMI", "Waist", "WtHR", "TAT", "SAT", "VAT", "PMI", "SMI", "STLV"), 
-               names_to = "BC", 
-               values_to = "BC_values") |>
-  ggplot(aes(x=ICANS_high,y=BC_values))+
-  geom_boxplot()+
-  geom_jitter()+
-  geom_pwc(method="wilcox_test")+
-  facet_wrap(vars(BC), scales = "free_y")
-
-##
-all_master %>%
-  filter(Entity!="MM")|>
-  filter(!is.na(VAT))|>
-  mutate(vat_high = ifelse(VAT >= 161.8, "high", "low")) %>%
-  ggplot(aes(x = vat_high, fill = factor(Maximaler.CRS.Grad))) +
-  geom_bar(position = "fill") +
-  scale_y_reverse()
-
-my_tab <- all_master %>%
-  filter(Entity != "MM") %>%
-  filter(!is.na(VAT)) %>%
-  mutate(vat_high = ifelse(VAT >= 161.8, "high", "low")) %>%
-  with(table(vat_high, Maximaler.CRS.Grad))
-chisq_result <- fisher.test(my_tab)
-chisq_result
-## Analysis of BC variables on survival and CRS development - Kaplan-Meier
-## and evaluation of previously published cut-offs
-
-# Previous cutoffs for survival
-# TAT =
-# VAT = 144.3
-# SAT = 
-# PMI = 4.7
-# PlasI = 34.5
-# Waist = 99.23
-# WtHR = 0.5935
-
-# PFS based on previous cutoffs
-all_master |> summarize(median(VAT, na.rm=T))
-all_master |>
-  ggplot(aes(x=VAT))+
-  geom_histogram()
-
-all_master_bcl <- all_master|> filter(Entity == "DLBCL")
-
-all_master |>
-  ggplot(aes(x=Entity,y=VAT))+
-  geom_boxplot()+
-  geom_jitter()
-
-# Survival stratified for entity
-km_pfs_entity <- survfit(Surv(PFS_days, PFS_event) ~ Entity, data=all_master)
-ggsurvplot(km_pfs_entity,
-           pval = T)
-
-km_os_entity <- survfit(Surv(OS_days, OS_event) ~ Entity, data=all_master)
-ggsurvplot(km_os_entity,
-           pval = T)
-
-# VAT
-km_pfs_vat <- survfit(Surv(PFS_days, PFS_event) ~ ifelse(VAT >= 161.8, "high", "low"), data=all_master |> filter(Entity!="MM"))
-ggsurvplot(km_pfs_vat,
-           pval = T)
-km_os_vat <- survfit(Surv(OS_days, OS_event) ~ ifelse(VAT >= 161.8, "high", "low"), data=all_master|> filter(Entity!="MM"))
-ggsurvplot(km_os_vat,
-           pval = T)
-
-# km_pfs_vat_cat <- survfit(Surv(PFS_days, PFS_event) ~ VAT_cat, data=all_master)
-# ggsurvplot(km_pfs_vat_cat,
-#            pval = T)
-# km_os_vat_cat <- survfit(Surv(OS_days, OS_event) ~ VAT_cat, data=all_master)
-# ggsurvplot(km_os_vat_cat,
-#            pval = T)
-# 
-# km_pfs_vat_pmi_cat <- survfit(Surv(PFS_days, PFS_event) ~ VAT_PMI_cat, data=all_master |>filter(Entity=="DLBCL"))
-# ggsurvplot(km_pfs_vat_pmi_cat,
-#            pval = T,
-#            risk.table = T)
-# 
-# km_os_vat_pmi_cat <- survfit(Surv(OS_days, OS_event) ~ VAT_PMI_cat, data=all_master |>filter(Entity=="DLBCL"))
-# ggsurvplot(km_os_vat_pmi_cat,
-#            pval = T,
-#            risk.table = T)
-
-
-# # Perform pairwise log-rank tests
-# res.pairwise <- pairwise_survdiff(
-#   Surv(OS_days, OS_event) ~ VAT_PMI_cat,
-#   data = all_master,
-#   p.adjust.method = "none")
-#
-# # Check the results
-# res.pairwise
-
-# Waist
-km_pfs_waist <- survfit(Surv(PFS_days, PFS_event) ~ ifelse(Waist > 99.23, "high", "low"), data=all_master)
-ggsurvplot(km_pfs_waist,
-           pval = T)
-
-# PMI
-km_pfs_pmi <- survfit(Surv(PFS_days, PFS_event) ~ ifelse(PMI > 4.7, "high", "low"), data=all_master)
-ggsurvplot(km_pfs_pmi,
-           pval = T)
-km_os_pmi <- survfit(Surv(OS_days, OS_event) ~ ifelse(PMI > 4.7, "high", "low"), data=all_master)
-ggsurvplot(km_os_pmi,
-           pval = T)
-
-# PlasI
-# km_pfs_smi <- survfit(Surv(PFS_days, PFS_event) ~ ifelse(PlasI > 34.52, "high", "low"), data=all_master|>filter(Entity!="MM"))
-# ggsurvplot(km_pfs_smi,
-#            pval = T)
-# 
-# km_os_smi <- survfit(Surv(OS_days, OS_event) ~ ifelse(PlasI > 34.52, "high", "low"), data=all_master|>filter(Entity!="MM"))
-# ggsurvplot(km_os_smi,
-#            pval = T)
-
-
-# ## TRYING NEW CUTOFFS
-# table<-cutoff.survival(all_master$BMI, all_master$PFS_days, all_master$PFS_event)
-# table<-cutoff.outcome(all_master$VAT, all_master$CRS_high)
-# 
-# table <- as.data.frame(table)
-
-# Previous cutoffs for CRS
-# TAT =
-# VAT =
-# SAT = 
-# PMI =
-# PlasI =
-# 
-# # Categorize VAT
-# all_master$VAT_cat <- cut(
-#   all_master$VAT,
-#   breaks = c(-Inf, 61.04, 231, Inf),
-#   labels = c("1", "2", "3"),
-#   right = TRUE,
-#   include.lowest = TRUE
-# )
-# 
-# # Categorize TAT
-# all_master$TAT_cat <- cut(
-#   all_master$TAT,
-#   breaks = c(-Inf, 293, 464, Inf),
-#   labels = c("1", "2", "3"),
-#   right = TRUE,
-#   include.lowest = TRUE
-# )
-# 
-# # Categorize SAT
-# all_master$SAT_cat <- cut(
-#   all_master$SAT,
-#   breaks = c(-Inf, 166.6, 252, Inf),
-#   labels = c("1", "2", "3"),
-#   right = TRUE,
-#   include.lowest = TRUE
-# )
-# 
-# all_master <- all_master %>%
-#   mutate(
-#     VAT_PMI_cat = case_when(
-#       VAT > 61.04 & PlasI > 34.52 ~ "VAThigh/PlasIhigh",
-#       TRUE ~ "rest"
-#     )
-#   )
-# 
-# all_master$VAT_cat
-# 
-# # (Optional) If you want them as numeric instead of factor:
-# all_master$VAT_cat <- as.numeric(all_master$VAT_cat)
-# all_master$TAT_cat <- as.numeric(all_master$TAT_cat)
-# all_master$SAT_cat <- as.numeric(all_master$SAT_cat)
-
-
-# coxph(Surv(OS_days, OS_event) ~ ifelse(PMI > 4.7, "high", "low"), data=all_master)
-# coxph(Surv(OS_days, OS_event) ~ ifelse(PlasI > 34.5, "high", "low"), data=all_master)
-# # coxph(Surv(PFS_days, PFS_event) ~ VAT_cat, data=all_master)
-# # coxph(Surv(OS_days, OS_event) ~ TAT_cat, data=all_master)
-# # coxph(Surv(OS_days, OS_event) ~ SAT_cat, data=all_master)
-# coxph(Surv(OS_days, OS_event) ~ ifelse(PMI > 4.7, "high", "low"), data=all_master)
-
-## PFS and OS
-
-km_pfs_cohort <- survfit(Surv(PFS_days/30.44, PFS_event) ~ 1, data=bl_all_master |> filter(!is.na(VAT)))
+## PFS and OS of entire cohort (Fig. S1) as well as with previously published VAT cut-off (Rejeski et al)
+km_pfs_cohort <- survfit(Surv(PFS_days/30.44, PFS_event) ~ 1, data=all_master |> filter(cohort == 'training'))
 p_kml_pfs_cohort <- ggsurvplot(km_pfs_cohort,
                            ylab = "Estimated PFS",
                            xlab = "Months after CAR-T infusion",
@@ -274,8 +62,9 @@ p_kml_pfs_cohort <- ggsurvplot(km_pfs_cohort,
                            legend.title = "PFS",
                            palette = c("Black")
 )
+p_kml_pfs_cohort
 
-km_os_cohort <- survfit(Surv(OS_days/30.44, OS_event) ~ 1, data=bl_all_master|> filter(!is.na(VAT)))
+km_os_cohort <- survfit(Surv(OS_days/30.44, OS_event) ~ 1, data=all_master|> filter(cohort == 'training'))
 p_kml_os_cohort <- ggsurvplot(km_os_cohort,
                               ylab = "Estimated OS",
                               xlab = "Months after CAR-T infusion",
@@ -303,172 +92,160 @@ p_kml_os_cohort <- ggsurvplot(km_os_cohort,
                               palette = c("Black")
 )
 
-
-
-## VAT Cutoff for survival = 61.04 cm2
-km_pfs_vat <- survfit(Surv(PFS_days/30.44, PFS_event) ~ ifelse(VAT >= 61.04, "high", "low"), data=bl_all_master |> filter(Entity!="MM"))
-ggsurvplot(km_pfs_vat,
-           pval = T)
-
+km_pfs_vat <- survfit(Surv(PFS_days/30.44, PFS_event) ~ ifelse(VAT >= 61.04, "high", "low"), data=all_master |> filter(cohort == 'training'))
 p_kml_pfs_vat <- ggsurvplot(km_pfs_vat,
-           ylab = "Estimated PFS",
-           xlab = "Months after CAR-T infusion",
-           break.time.by = 3,
-           xlim = c(0,26),
-           censor.size = 5,
-           pval = TRUE,
-           pval.coord = c(0.3, 0.05),
-           pval.size = 3,
-           size = 1.5,
-           axes.offset = F,
-           risk.table = TRUE,
-           risk.table.title = "No. at risk",
-           risk.table.heigbcma.ht = .2,
-           survival.plot.heigbcma.ht = 0.9,
-           tables.y.text = FALSE,
-           tables.theme = theme_cleantable(base_size = 2),
-           conf.int = F,
-           ggtheme = theme_classic2(10),
-           font.title = c(9, "bold"),
-           font.tickslab = c(10),
-           font.legend.labs = c(10),
-           font.x = c(10, "bold"),
-           font.y = c(10, "bold"),
-           fontsize = 3,
-           legend.title = "VAT",
-           legend.labs= c("High", "Low"),
-           palette = c("#003366", "#CC0000" )
+                            ylab = "Estimated PFS",
+                            xlab = "Months after CAR-T infusion",
+                            break.time.by = 3,
+                            xlim = c(0,26),
+                            censor.size = 5,
+                            pval = TRUE,
+                            pval.coord = c(0.3, 0.05),
+                            pval.size = 3,
+                            size = 1.5,
+                            axes.offset = F,
+                            risk.table = TRUE,
+                            risk.table.title = "No. at risk",
+                            risk.table.heigbcma.ht = .2,
+                            survival.plot.heigbcma.ht = 0.9,
+                            tables.y.text = FALSE,
+                            tables.theme = theme_cleantable(base_size = 2),
+                            conf.int = F,
+                            ggtheme = theme_classic2(10),
+                            font.title = c(9, "bold"),
+                            font.tickslab = c(10),
+                            font.legend.labs = c(10),
+                            font.x = c(10, "bold"),
+                            font.y = c(10, "bold"),
+                            fontsize = 3,
+                            legend.title = "VAT",
+                            legend.labs= c("High", "Low"),
+                            palette = c("#003366", "#CC0000" )
 )
+p_kml_pfs_vat
 
-km_os_vat <- survfit(Surv(OS_days/30.44, OS_event) ~ ifelse(VAT >= 61.04, "high", "low"), data=bl_all_master|> filter(Entity!="MM"))
-ggsurvplot(km_os_vat,
-           pval = T)
-
+km_os_vat <- survfit(Surv(OS_days/30.44, OS_event) ~ ifelse(VAT >= 61.04, "high", "low"), data=all_master |> filter(cohort == 'training'))
 p_kml_os_vat <- ggsurvplot(km_os_vat,
-           ylab = "Estimated OS",
-           xlab = "Months after CAR-T infusion",
-           break.time.by = 3,
-           xlim = c(0,26),
-           censor.size = 5,
-           pval = TRUE,
-           pval.coord = c(0.3, 0.05),
-           pval.size = 3,
-           size = 1.5,
-           axes.offset = F,
-           risk.table = TRUE,
-           risk.table.title = "No. at risk",
-           risk.table.heigbcma.ht = .2,
-           survival.plot.heigbcma.ht = 0.9,
-           tables.y.text = FALSE,
-           tables.theme = theme_cleantable(base_size = 2),
-           conf.int = F,
-           ggtheme = theme_classic2(10),
-           font.title = c(9, "bold"),
-           font.tickslab = c(10),
-           font.legend.labs = c(10),
-           font.x = c(10, "bold"),
-           font.y = c(10, "bold"),
-           fontsize = 3,
-           legend.title = "VAT",
-           legend.labs= c("High", "Low"),
-           palette = c("#003366", "#CC0000" )
+                           ylab = "Estimated OS",
+                           xlab = "Months after CAR-T infusion",
+                           break.time.by = 3,
+                           xlim = c(0,26),
+                           censor.size = 5,
+                           pval = TRUE,
+                           pval.coord = c(0.3, 0.05),
+                           pval.size = 3,
+                           size = 1.5,
+                           axes.offset = F,
+                           risk.table = TRUE,
+                           risk.table.title = "No. at risk",
+                           risk.table.heigbcma.ht = .2,
+                           survival.plot.heigbcma.ht = 0.9,
+                           tables.y.text = FALSE,
+                           tables.theme = theme_cleantable(base_size = 2),
+                           conf.int = F,
+                           ggtheme = theme_classic2(10),
+                           font.title = c(9, "bold"),
+                           font.tickslab = c(10),
+                           font.legend.labs = c(10),
+                           font.x = c(10, "bold"),
+                           font.y = c(10, "bold"),
+                           fontsize = 3,
+                           legend.title = "VAT",
+                           legend.labs= c("High", "Low"),
+                           palette = c("#003366", "#CC0000" )
 )
+p_kml_os_vat
 
-## VAT cutoff for CRS = 161.8
-all_master %>%
-  filter(Entity!="MM")|>
-  filter(!is.na(VAT))|>
-  mutate(vat_high = ifelse(VAT >= 161.8, "high", "low")) %>%
-  ggplot(aes(x = vat_high, fill = factor(Maximaler.CRS.Grad))) +
-  geom_bar(position = "fill") +
-  scale_x_discrete(limits = c("low", "high"))+
-  scale_fill_manual(values=c("lightgrey","#FFCCCC", "#FF5151" ,"#990000"))+
-  labs(x="VAT", y="Number of patients [%]", fill="CRS grade")+
-  theme_classic()
+### Defining cut-offs for adipose tissue compartments based on CRS development of grade 2 higher ----
+# Prepare CRS dataset
+crs_data <- all_master %>%
+  filter(Entity != "MM") %>%
+  mutate(
+    CRS_any = ifelse(Maximaler.CRS.Grad >= 1, 1, 0),
+    CRS_grade2p = ifelse(Maximaler.CRS.Grad >= 2, 1, 0),
+    CRS_grade3p = ifelse(Maximaler.CRS.Grad >= 3, 1, 0)
+  )
 
-my_tab <- all_master %>%
-  filter(Entity!="MM") %>%
-  filter(!is.na(VAT)) %>%
-  mutate(vat_high = ifelse(VAT >= 161.8, "high", "low")) %>%
-  with(table(vat_high, Maximaler.CRS.Grad))
-crs_fisher_results <- fisher.test(my_tab)
-crs_fisher_results
+# Function to calculate ROC and Youden cutoff
+get_youden_cutoff <- function(data, marker, outcome) {
+  
+  df <- data %>%
+    filter(
+      !is.na(.data[[marker]]),
+      !is.na(.data[[outcome]])
+    )
+  
+  # Skip if endpoint has only one class
+  if (length(unique(df[[outcome]])) < 2) {
+    return(
+      tibble(
+        marker = marker,
+        outcome = outcome,
+        n = nrow(df),
+        events = sum(df[[outcome]] == 1),
+        auc = NA_real_,
+        threshold = NA_real_,
+        sensitivity = NA_real_,
+        specificity = NA_real_,
+        youden = NA_real_
+      )
+    )
+  }
+  
+  roc_obj <- pROC::roc(
+    response = df[[outcome]],
+    predictor = df[[marker]],
+    direction = "<",
+    quiet = TRUE
+  )
+  
+  cutoff <- pROC::coords(
+    roc_obj,
+    x = "best",
+    best.method = "youden",
+    ret = c("threshold", "sensitivity", "specificity"),
+    transpose = FALSE
+  )
+  
+  tibble(
+    marker = marker,
+    outcome = outcome,
+    n = nrow(df),
+    events = sum(df[[outcome]] == 1),
+    auc = as.numeric(pROC::auc(roc_obj)),
+    threshold = as.numeric(cutoff["threshold"]),
+    sensitivity = as.numeric(cutoff["sensitivity"]),
+    specificity = as.numeric(cutoff["specificity"]),
+    youden = sensitivity + specificity - 1
+  )
+}
 
-my_tab <- all_master %>%
-  filter(Entity!="MM") %>%
-  filter(!is.na(VAT)) %>%
-  mutate(vat_high = ifelse(VAT >= median(VAT), "high", "low")) %>%
-  with(table(vat_high, Maximaler.CRS.Grad))
-crs_fisher_results <- fisher.test(my_tab)
-crs_fisher_results
+# Run for all markers and CRS definitions
+youden_results <- expand.grid(
+  marker = c("VAT", "SAT", "TAT"),
+  outcome = c("CRS_any", "CRS_grade2p", "CRS_grade3p"),
+  stringsAsFactors = FALSE
+) %>%
+  purrr::pmap_dfr(
+    function(marker, outcome) {
+      get_youden_cutoff(crs_data, marker = marker, outcome = outcome)
+    }
+  )
 
+youden_results
 
-## SAT cutoff for survival = NA no survival difference based on SAT alone
+# Adding cut-offs to all_master table
+all_master <- all_master |>
+  mutate(VAT_survival = ifelse(VAT > median(VAT, na.rm =T), "high", "low"),
+         VAT_CRS = ifelse(VAT > 161.8, "high", "low"),
+         SAT_survival = ifelse(SAT > median(SAT, na.rm =T), "high", "low"),
+         SAT_CRS = ifelse(SAT > 209, "high", "low"),
+         TAT_survival = ifelse(TAT > median(TAT, na.rm =T), "high", "low"),
+         TAT_CRS = ifelse(TAT > 310, "high", "low"))
 
-km_pfs_sat <- survfit(Surv(PFS_days/30.44, PFS_event) ~ ifelse(SAT >= 100, "high", "low"), data=all_master |> filter(Entity!="MM"))
-ggsurvplot(km_pfs_sat,
-           pval = T)
-
-km_os_sat <- survfit(Surv(OS_days/30.44, OS_event) ~ ifelse(SAT >= 209, "high", "low"), data=all_master|> filter(Entity!="MM"))
-ggsurvplot(km_os_sat,
-           pval = T)
-
-
-## SAT cutoff for CRS = 209 p-value 0.13
-all_master %>%
-  filter(Entity!="MM")|>
-  filter(!is.na(SAT))|>
-  mutate(sat_high = ifelse(SAT >= 166, "high", "low")) %>%
-  ggplot(aes(x = sat_high, fill = factor(Maximaler.CRS.Grad))) +
-  geom_bar(position = "fill") +
-  scale_y_reverse()
-
-my_tab <- all_master %>%
-  filter(Entity!="MM") %>%
-  filter(!is.na(SAT)) %>%
-  mutate(sat_high = ifelse(SAT >= 209, "high", "low")) %>%
-  with(table(sat_high, Maximaler.CRS.Grad))
-crs_fisher_results <- fisher.test(my_tab)
-crs_fisher_results
-
-
-my_tab <- all_master %>%
-  filter(Entity!="MM") %>%
-  filter(!is.na(SAT)) %>%
-  mutate(sat_high = SAT > median(SAT, na.rm =T), "high", "low") %>%
-  with(table(sat_high, Maximaler.CRS.Grad))
-crs_fisher_results <- fisher.test(my_tab)
-crs_fisher_results
-
-## TAT cutoff for survival = 325.8
-km_pfs_tat <- survfit(Surv(PFS_days, PFS_event) ~ ifelse(TAT >= 325.8, "high", "low"), data=all_master |> filter(Entity!="MM"))
-ggsurvplot(km_pfs_tat,
-           pval = T)
-km_os_tat <- survfit(Surv(OS_days, OS_event) ~ ifelse(TAT >= 325.8, "high", "low"), data=all_master|> filter(Entity!="MM"))
-ggsurvplot(km_os_tat,
-           pval = T)
-
-## SAT cutoff for CRS = 310
-all_master %>%
-  filter(Entity!="MM")|>
-  filter(!is.na(TAT))|>
-  mutate(tat_high = ifelse(TAT >= 310, "high", "low")) %>%
-  ggplot(aes(x = tat_high, fill = factor(Maximaler.CRS.Grad))) +
-  geom_bar(position = "fill") +
-  scale_y_reverse()
-
-my_tab <- all_master %>%
-  filter(Entity!="MM") %>%
-  filter(!is.na(TAT)) %>%
-  mutate(tat_high = ifelse(TAT >= 310, "high", "low")) %>%
-  with(table(tat_high, Maximaler.CRS.Grad))
-crs_fisher_results <- fisher.test(my_tab)
-crs_fisher_results
-
-
-## Loading of data tables with metabolites
-cohort_1 <- read_excel("Input_files/0_CART_Metabolomics_Data_MASTER.xlsx")
-cohort_2 <- read_excel("Input_files/1_validation_metabolomics_master.xlsx")
+### Loading and cleaning of metabolite data tables ----
+cohort_1 <- read_excel("Input_files/0_CART_Metabolomics_Data_MASTER.xlsx") # Discovery cohort
+cohort_2 <- read_excel("Input_files/1_validation_metabolomics_master.xlsx") # Validation cohort
 
 cohort_1 <- cohort_1%>%
   mutate(
@@ -481,7 +258,7 @@ cohort_2 <- cohort_2%>%
   )
 
 
-
+## Renaming and unifying metabolite names 
 rename_map <- c(
   # One-to-one renames
   "Choline"                = "Choline (+)",
@@ -675,12 +452,15 @@ qc_cohort_2 <- cohort_2 |>
   select(-Sample, -Time, -Kombi)|>
   pivot_longer(cols = Alanine:`Cer-(24:01)`, names_to = "metabolite", values_to = "quality")
 
+## Removing metabolites with quality score of 4 or higher
 qc_mb_cohort_1 <- qc_cohort_1 |> filter(quality <= 3) |> select(metabolite) |> unlist() |> as.vector()
 qc_mb_cohort_2 <- qc_cohort_2 |> filter(quality <= 3) |> select(metabolite) |> unlist() |> as.vector()
 
 qc_mb_cohort_combined <- union(qc_mb_cohort_1, qc_mb_cohort_2) ## These are the columns to keep in a unified data frame
 
-## Creating a unified data frame containing the data from day 0 only
+###
+### Creating a unified data frame containing the data from day 0 only ----
+### 
 bl_cohort_1 <- cohort_1 |>
   filter(!is.na(Sample))|>
   filter(Timepoint == 1)|>
@@ -707,27 +487,11 @@ bl_cohort_merged <- bind_rows(bl_cohort_1, bl_cohort_2)
 bl_cohort_filter <- bl_cohort_merged |> select(Sample, any_of(qc_mb_cohort_combined))
 
 ## Adding Sample Name from Metadata table
-bl_sample_id <- all_master |> filter(Sample != "A60") |> filter(Sample != "A73") |> select(Sample) |> unlist() |> as.vector() #Removing two sample ids without day 0
+# Removing two sample ids without day 0 measurements
+bl_sample_id <- all_master |> filter(Sample != "A60") |> filter(Sample != "A73") |> select(Sample) |> unlist() |> as.vector() 
 
 bl_cohort_filter$Sample_new <- bl_sample_id
 bl_cohort_filter <- bl_cohort_filter |> select(Sample, Sample_new, everything())
-
-## Creating new columns with cutoffs for VAT_survival and VAT_CRS
-# all_master <- all_master |>
-#   mutate(VAT_survival = ifelse(VAT > 61.04, "high", "low"),
-#          VAT_CRS = ifelse(VAT > 161.8, "high", "low"),
-#          SAT_survival = ifelse(SAT > 166, "high", "low"),
-#          SAT_CRS = ifelse(SAT > 209, "high", "low"),
-#          TAT_survival = ifelse(TAT > 325.8, "high", "low"),
-#          TAT_CRS = ifelse(TAT > 310, "high", "low"))
-
-all_master <- all_master |>
-  mutate(VAT_survival = ifelse(VAT > median(VAT, na.rm =T), "high", "low"),
-         VAT_CRS = ifelse(VAT > 161.8, "high", "low"),
-         SAT_survival = ifelse(SAT > median(SAT, na.rm =T), "high", "low"),
-         SAT_CRS = ifelse(SAT > 209, "high", "low"),
-         TAT_survival = ifelse(TAT > median(TAT, na.rm =T), "high", "low"),
-         TAT_CRS = ifelse(TAT > 310, "high", "low"))
 
 VAT_survival_vector <- all_master |> filter(Sample != "A60") |> filter(Sample != "A73") |> select(VAT_survival) |> unlist() |> as.vector() 
 VAT_crs_vector <- all_master |> filter(Sample != "A60") |> filter(Sample != "A73") |> select(VAT_CRS) |> unlist() |> as.vector() 
@@ -736,9 +500,8 @@ SAT_crs_vector <- all_master |> filter(Sample != "A60") |> filter(Sample != "A73
 TAT_survival_vector <- all_master |> filter(Sample != "A60") |> filter(Sample != "A73") |> select(TAT_survival) |> unlist() |> as.vector() 
 TAT_crs_vector <- all_master |> filter(Sample != "A60") |> filter(Sample != "A73") |> select(TAT_CRS) |> unlist() |> as.vector() 
 
-
 ###
-### Creating a combined data frame for day 3-5 (2nd time point) for CRS analysis
+### Creating a combined data frame for day 3-5 (2nd time point) for CRS analysis ----
 ###
 
 ## Creating a unified data frame containing the data from day 0 only
@@ -772,6 +535,7 @@ t2_sample_id <- all_master |> filter(!(Sample %in% c("A60", "A66", "A72", "A75",
 t2_cohort_filter$Sample_new <- t2_sample_id
 t2_cohort_filter <- t2_cohort_filter |> select(Sample, Sample_new, everything())
 
+
 ## Creating new columns with cutoffs for VAT_survival and VAT_CRS
 all_master <- all_master |>
   mutate(VAT_survival = ifelse(VAT > 61.04, "high", "low"),
@@ -780,6 +544,7 @@ all_master <- all_master |>
 VAT_survival_vector <- all_master |> filter(Sample != "A60") |> filter(Sample != "A73") |> select(VAT_survival) |> unlist() |> as.vector() 
 VAT_crs_vector <- all_master |> filter(Sample != "A60") |> filter(Sample != "A73") |> select(VAT_CRS) |> unlist() |> as.vector() 
 
+# Removing patients with missing metabolite measurements
 t2_VAT_crs_vector <- all_master |> filter(!(Sample %in% c("A60", "A66", "A72", "A75", "A78"))) |> select(VAT_CRS) |> unlist() |> as.vector() 
 t2_SAT_crs_vector <- all_master |> filter(!(Sample %in% c("A60", "A66", "A72", "A75", "A78"))) |> select(SAT_CRS) |> unlist() |> as.vector() 
 t2_TAT_crs_vector <- all_master |> filter(!(Sample %in% c("A60", "A66", "A72", "A75", "A78"))) |> select(TAT_CRS) |> unlist() |> as.vector() 
@@ -880,13 +645,9 @@ t2_cohort_TAT_crs <- t2_cohort_filter |>
   slice(1:(n() - 15))
 write.csv(t2_cohort_TAT_crs, "Input_files/t2_cohort_TAT_crs.csv", row.names = F)
 
-### NOTE
-### Major batch effect between cohort 1 and cohort 2 -> therefore cohort 2 excluded from explorative analysis
-###
-
 
 ###
-### Identification of metabolites from VAT survival analysis ----
+### Identification of metabolites from VAT differences for survival and feature selection ----
 ### 
 
 ## 1. Analysis of day 0 differences to extract metabolites
@@ -1080,7 +841,7 @@ bl_vat_surv_metabolites <- union(bl_vat_surv_plsda_metabolites, bl_vat_surv_volc
 ###
 
 ###
-### Identification of metabolites from SAT survival analysis ----
+### Identification of metabolites from SAT differences for survival and feature selection ----
 ### 
 
 ## 1. Analysis of day 0 differences to extract metabolites
@@ -1259,9 +1020,9 @@ bl_sat_surv_plsda_metabolites <- bl_sat_surv_PLSDA_VIP %>%
 
 bl_sat_surv_metabolites <- union(bl_sat_surv_plsda_metabolites, bl_sat_surv_volcano_metabolites)
 
+
 ###
-###
-### Identification of metabolites from TAT differences ----
+### Identification of metabolites from TAT differences for survival and feature selection ----
 ###
 ## 1. Analysis of day 0 differences to extract metabolites
 
@@ -1441,10 +1202,7 @@ bl_tat_surv_metabolites <- union(bl_tat_surv_plsda_metabolites, bl_tat_surv_volc
 
 
 ###
-###
-
-###
-### Comparison of filtered survival metabolites with BC levels ----
+### Survival: Correlation of filtered survival metabolites with BC levels (Figure 1F, S4) ----
 ###
 
 ## Comparison of VAT metabolites with VAT measurements
@@ -1504,7 +1262,6 @@ for (met in bl_vat_surv_metabolites) {
   plot_list_bl_vat_surv_corr[[met]] <- p
 }
 
-# If you want to see all the plots at once, you can do:
 # Create the arranged grid
 grid_combined <- arrangeGrob(grobs = plot_list_bl_vat_surv_corr, ncol = 4)
 
@@ -1565,7 +1322,6 @@ for (met in bl_sat_surv_metabolites) {
   plot_list_bl_sat_surv_corr[[met]] <- p
 }
 
-# If you want to see all the plots at once, you can do:
 # Create the arranged grid
 grid_combined <- arrangeGrob(grobs = plot_list_bl_sat_surv_corr, ncol = 4)
 
@@ -1627,7 +1383,6 @@ for (met in bl_tat_surv_metabolites) {
   plot_list_bl_tat_surv_corr[[met]] <- p
 }
 
-# If you want to see all the plots at once, you can do:
 # Create the arranged grid
 grid_combined <- arrangeGrob(grobs = plot_list_bl_tat_surv_corr, ncol = 4)
 
@@ -1649,7 +1404,8 @@ bl_tat_surv_corr_filter <- bl_tat_surv_corr |>
   pull(Metabolite) |>
   unname()
 
-### Common and different metabolites to the VAT adipose depot ----
+###
+### Survival: Common and different metabolites to the VAT adipose depot ----
 ###
 
 # Common to all three
@@ -1687,7 +1443,7 @@ bl_all_surv_corr_filter <- sort(unique(c(
 )))
 
 ###
-### Associations with survival ----
+### Associations with survival using COX models(Figure 1C, S2) ----
 ###
 
 str(bl_vat_surv_norm_bc)
@@ -1727,12 +1483,12 @@ for (i in bl_all_surv_corr_filter) {
 str(bl_all_cox_adjusted)
 
 bl_all_cox_adjusted <- bl_all_cox_adjusted %>%
-  mutate(group = sapply(marker, get_group_new))  # your custom get_group() function
+  mutate(group = sapply(marker, get_group_new)) 
 
 bl_all_cox_adjusted <- bl_all_cox_adjusted |> filter(!(marker %in% c("PI-(38:07)", "PI-(40:03)","PI-(40:08)","PI-(40:09)")))
 
 bl_all_cox_adjusted <- bl_all_cox_adjusted |>
-  arrange(group, desc(HR)) |>  # You can change `desc(HR)` to another column if needed
+  arrange(group, desc(HR)) |> 
   mutate(marker = factor(marker, levels = unique(marker)))
 
 p_surv_group <- bl_all_cox_adjusted |>
@@ -1770,7 +1526,7 @@ meta_survival <- bl_all_cox_adjusted %>%
   )
 
 
-# Double-check that meta_df has the columns you expect:
+# Double-check that meta_df
 meta_survival <- meta_survival |> filter(!(marker %in% c("PI-(38:07)", "PI-(40:03)","PI-(40:08)","PI-(40:09)")))
 
 meta_results_survival <- meta_survival %>%
@@ -1834,17 +1590,17 @@ p_meta_surv_group <- meta_results_survival |>
   theme(
     axis.title = element_text(size = 11),
     axis.text = element_text(size = 10),
-    plot.title = element_text(size = 14, face = "bold")  # Adjust the size and style as needed
+    plot.title = element_text(size = 14, face = "bold")
   )
 
-print(p_meta_surv_group)
+print(p_meta_surv_group) #(Figure 1C)
 ggsave("Figures_Manuscript/meta_surv.svg", plot = p_meta_surv_group, width = 6, height = 4.5)
 
-###
-### Test distribution analysis
-###
 
 
+###
+### Survival: Distribution of lipids based on adipose tissue compartment (Fig. 1E) ----
+###
 
 # Distribution of ACs
 get_ACs <- function(x) {
@@ -1890,22 +1646,6 @@ surv_ac_vector <- surv_ac_df %>%
   select(metabolite)|>
   unlist()|>
   as.vector()
-
-ggplot(surv_ac_summary, aes(x = "", y = count, fill = group)) +
-  geom_col(width = 1) +
-  coord_polar(theta = "y") +
-  theme_void() +
-  labs(title = "Acetylcarnitines (ACs) by Adipose Tissue Site") +
-  scale_fill_manual(values = group_colors) +
-  scale_pattern_manual(values = c(
-    only_vat = "none",
-    only_sat = "none",
-    only_tat = "none",
-    tat_vat = "stripe",
-    tat_sat = "crosshatch",
-    vat_sat = "stripe",
-    common_all = "circle"
-  ))
 
 
 # Distribution of Phosphatidylethanolamine
@@ -1953,24 +1693,6 @@ surv_pea_vector <- surv_pea_df %>%
   unlist()|>
   as.vector()
 
-ggplot(surv_pea_summary, aes(x = "", y = count, fill = group)) +
-  geom_col(width = 1) +
-  coord_polar(theta = "y") +
-  theme_void() +
-  labs(title = "Phosphatidylethalonamine (PEAs) by Adipose Tissue Site") +
-  scale_fill_manual(values = group_colors) +
-  scale_pattern_manual(values = c(
-    only_vat = "none",
-    only_sat = "none",
-    only_tat = "none",
-    tat_vat = "stripe",
-    tat_sat = "crosshatch",
-    vat_sat = "stripe",
-    common_all = "circle"
-  ))
-
-
-
 # Distribution of Sphingomyeline
 get_SMs <- function(x) {
   grep("^SM-", x, value = TRUE)
@@ -2015,23 +1737,6 @@ surv_sm_vector <- surv_sm_df %>%
   select(metabolite)|>
   unlist()|>
   as.vector()
-
-ggplot(surv_sm_summary, aes(x = "", y = count, fill = group)) +
-  geom_col(width = 1) +
-  coord_polar(theta = "y") +
-  theme_void() +
-  labs(title = "Phosphatidylethalonamine (PEAs) by Adipose Tissue Site") +
-  scale_fill_manual(values = group_colors) +
-  scale_pattern_manual(values = c(
-    only_vat = "none",
-    only_sat = "none",
-    only_tat = "none",
-    tat_vat = "stripe",
-    tat_sat = "crosshatch",
-    vat_sat = "stripe",
-    common_all = "circle"
-  ))
-
 
 # Distribution of Sphingomyelins
 get_Plass <- function(x) {
@@ -2078,32 +1783,6 @@ surv_plas_vector <- surv_plas_df %>%
   unlist()|>
   as.vector()
 
-ggplot(surv_plas_summary, aes(x = "", y = count, fill = group)) +
-  geom_col(width = 1) +
-  coord_polar(theta = "y") +
-  theme_void() +
-  labs(title = "Plasmalogene (Plas) by Adipose Tissue Site") +
-  scale_fill_manual(values = group_colors) +
-  scale_pattern_manual(values = c(
-    only_vat = "none",
-    only_sat = "none",
-    only_tat = "none",
-    tat_vat = "stripe",
-    tat_sat = "crosshatch",
-    vat_sat = "stripe",
-    common_all = "circle"
-  ))
-
-group_colors <- c(
-  only_vat = "#4CAF50",
-  only_sat = "#9C27B0",
-  only_tat = "#2196F3",
-  tat_vat = "#009688",
-  tat_sat = "#673AB7",
-  vat_sat = "#8BC34A",
-  common_all = "#9E9E9E"
-)
-
 
 ## Combining data frames and create a bar plot
 surv_at_distr <- rbind(surv_ac_summary, surv_plas_summary, surv_sm_summary, surv_pea_summary) %>%
@@ -2116,8 +1795,8 @@ surv_at_distr <- rbind(surv_ac_summary, surv_plas_summary, surv_sm_summary, surv
 surv_at_distr<- surv_at_distr |>
   mutate(group_new = case_when(
     group == "only_tat" ~ "AT-shared",
-    group == "only_vat" ~ "VAT-derived",
-    group == "only_sat" ~ "SAT-derived",
+    group == "only_vat" ~ "VAT-correlated",
+    group == "only_sat" ~ "SAT-correlated",
     group == "tat_vat" ~ "VAT-enriched",
     group == "tat_sat" ~ "SAT-enriched",
     group == "vat_sat" ~ "AT-shared",
@@ -2126,9 +1805,9 @@ surv_at_distr<- surv_at_distr |>
 
 group_colors_AT <- c(
   `AT-shared` = "#2196F3",
-  `VAT-derived` = "#4CAF50",
+  `VAT-correlated` = "#4CAF50",
   `VAT-enriched` = "#009688",
-  `SAT-derived` = "#673AB7",
+  `SAT-correlated` = "#673AB7",
   `SAT-enriched` = "#9C27B0"
 )
 
@@ -2142,9 +1821,9 @@ ggplot(surv_at_distr, aes(x = met_group, y = percentage, fill = group)) +
 
 surv_at_distr <- surv_at_distr |>
   mutate(group_new = factor(group_new, levels = c("AT-shared" ,
-                                                  "VAT-derived",
+                                                  "VAT-correlated",
                                                   "VAT-enriched",
-                                                  "SAT-derived",
+                                                  "SAT-correlated",
                                                   "SAT-enriched" )))
 
 p_surv_distr <- ggplot(surv_at_distr, aes(x = met_group, y = percentage, fill = group_new)) +
@@ -2159,47 +1838,12 @@ print(p_surv_distr)
 ggsave("Figures_Manuscript/p_surv_distr.svg", plot = p_surv_distr, width = 5, height = 3)
 
 ###
+### Kaplan-Meier plots for representative metabolites for each group (Fig. 1D, S3) ---- 
 ###
-###
-
-# ## Calculation of Cox model for day 0 metabolite levels
-# bl_sat_cox_univariate <- data.frame(marker = character(),
-#                                     HR = numeric(),
-#                                     lower95 = numeric(),
-#                                     higher95 = numeric(),
-#                                     p_value = numeric(),
-#                                     stringsAsFactors = FALSE)
-# 
-# for (i in bl_sat_surv_corr_filter) {
-#   # Fit Cox proportional hazards model
-#   formula_str <- paste0("Surv(PFS_days, PFS_event)  ~ `",i,"` + EASIX + STLV +Geschlecht")
-#   model_cox <- coxph(as.formula(formula_str), data = bl_vat_surv_norm_bc)
-#   
-#   # Extract coefficients and their standard errors
-#   summary_model_cox <- summary(model_cox)
-#   
-#   # Create a data frame with results for the current marker
-#   marker_results_cox <- data.frame(
-#     marker = i,
-#     HR = summary_model_cox$conf.int[1,"exp(coef)"],
-#     lower95 = summary_model_cox$conf.int[1,"lower .95"],
-#     higher95 = summary_model_cox$conf.int[1,"upper .95"],
-#     p_value = summary_model_cox$coefficients[1,"Pr(>|z|)"]
-#   )
-#   
-#   # Append results to the main data frame
-#   bl_sat_cox_univariate  <- rbind(bl_sat_cox_univariate, marker_results_cox)
-# }
-# 
-# bl_sat_cox_univariate <- bl_sat_cox_univariate |>
-#   mutate(FDR = p.adjust(p_value, method = "fdr"))
-
-
 bl_vat_surv_norm_bc$PFS_days
 bl_vat_surv_norm_bc$PFS_event
 bl_vat_surv_norm_bc$`Plas-(d18:1/18:01)`
 bl_vat_surv_norm_bc$EASIX
-
 
 coxph(Surv(PFS_days, PFS_event) ~ `PEA-(34:03)`, data=bl_vat_surv_norm_bc)
 
@@ -2448,6 +2092,7 @@ p_km_pfs_ac221 <- ggsurvplot(pfs_ac221,
 ggsave(filename = "Figures_Manuscript/km/p_km_pfs_ac221.svg", plot = p_km_pfs_ac221$plot,
        width = 3, height = 2.5)
 
+
 os_ac221 <- survfit(Surv(OS_days/30.44, OS_event) ~ ifelse(`AC-(22:1)` > median(`AC-(22:1)` ), "Plas_high", "Plas_low"), data=bl_vat_surv_norm_bc)
 summary(os_ac221)
 summary(os_ac221, times = 365)
@@ -2485,6 +2130,78 @@ ggsave(filename = "Figures_Manuscript/km/p_km_os_ac221.svg", plot = p_km_os_ac22
        width = 3, height = 2.5)
 
 
+pfs_dag <- survfit(Surv(PFS_days/30.44, PFS_event) ~ ifelse(`DAG-(36:04)` > median(`DAG-(36:04)` ), "DAG_high", "DAG_low"), data=bl_vat_surv_norm_bc)
+summary(pfs_dag)
+summary(pfs_dag, times = 365)
+p_km_pfs_dag <- ggsurvplot(pfs_dag,
+                             ylab = "Estimated PFS",
+                             xlab = "Months after CAR-T infusion",
+                             break.time.by = 3,
+                             xlim = c(0,26),
+                             censor.size = 5,
+                             pval = TRUE,
+                             pval.coord = c(0.3, 0.1),
+                             pval.size = 4,
+                             size = 1.5,
+                             axes.offset = F,
+                             risk.table = F,
+                             risk.table.title = "No. at risk",
+                             risk.table.heigbcma.ht = .2,
+                             survival.plot.heigbcma.ht = 0.9,
+                             tables.y.text = FALSE,
+                             tables.theme = theme_cleantable(base_size = 2),
+                             conf.int = F,
+                             ggtheme = theme_classic2(10),
+                             font.title = c(9, "bold"),
+                             font.tickslab = c(10),
+                             font.legend.labs = c(10),
+                             font.x = c(10, "bold"),
+                             font.y = c(10, "bold"),
+                             fontsize = 3,
+                             legend.title = "DAG-(36:04)",
+                             legend.labs= c("High", "Low"),
+                             palette = c("black","darkgrey")
+)
+p_km_pfs_dag
+ggsave(filename = "Figures_Manuscript/km/p_km_pfs_dag.svg", plot = p_km_pfs_dag$plot,
+       width = 3, height = 2.5)
+
+os_dag <- survfit(Surv(OS_days/30.44, OS_event) ~ ifelse(`DAG-(36:04)` > median(`DAG-(36:04)` ), "DAG_high", "DAG_low"), data=bl_vat_surv_norm_bc)
+summary(os_dag)
+summary(os_dag, times = 365)
+p_km_os_dag <- ggsurvplot(os_dag,
+                            ylab = "Estimated OS",
+                            xlab = "Months after CAR-T infusion",
+                            break.time.by = 3,
+                            xlim = c(0,26),
+                            censor.size = 5,
+                            pval = TRUE,
+                            pval.coord = c(0.3, 0.1),
+                            pval.size = 4,
+                            size = 1.5,
+                            axes.offset = F,
+                            risk.table = F,
+                            risk.table.title = "No. at risk",
+                            risk.table.heigbcma.ht = .2,
+                            survival.plot.heigbcma.ht = 0.9,
+                            tables.y.text = FALSE,
+                            tables.theme = theme_cleantable(base_size = 2),
+                            conf.int = F,
+                            ggtheme = theme_classic2(10),
+                            font.title = c(9, "bold"),
+                            font.tickslab = c(10),
+                            font.legend.labs = c(10),
+                            font.x = c(10, "bold"),
+                            font.y = c(10, "bold"),
+                            fontsize = 3,
+                            legend.title = "DAG-(36:04)",
+                            legend.labs= c("High", "Low"),
+                            palette = c("black","darkgrey")
+)
+
+ggsave(filename = "Figures_Manuscript/km/p_km_os_dag.svg", plot = p_km_os_dag$plot,
+       width = 3, height = 2.5)
+
 # ### Function to save plots ----
 # Retrieve the plots using the pattern
 pattern_km <- "p_km_[a-zA-Z0-9]+_[a-zA-Z0-9]"
@@ -2499,12 +2216,9 @@ dir.create(output_dir, showWarnings = FALSE)
 
 
 for (name in names(plots_km)) {
-  # pkm_* is the ggsurvplot result (a list)
   p_obj <- plots_km[[name]]
-  # Combine the main KM plot and the risk table vertically
   combined_plot <- ggarrange(
     p_obj$plot
- # adjust to control relative space
   )
   
   # Define filename/path
@@ -2522,14 +2236,12 @@ for (name in names(plots_km)) {
 }
 
 for (name in names(plots_kml)) {
-  # pkm_* is the ggsurvplot result (a list)
   p_obj <- plots_kml[[name]]
-  # Combine the main KM plot and the risk table vertically
   combined_plot <- ggarrange(
     p_obj$plot,
     p_obj$table,
     nrow = 2,
-    heights = c(3, 0.7) # adjust to control relative space
+    heights = c(3, 0.7) # controls relative space
   )
   
   # Define filename/path

@@ -1,54 +1,104 @@
-library(readxl)
-library(openxlsx)
-library(tidyr)
-library(dplyr)
-library(ggplot2)
-library(ggrepel)
-library(purrr)
-library(plotly)
-library(stringr)
-library(ComplexHeatmap)
-library(ggpubr)
-library(gridExtra)
-library(hrbrthemes)
-library(ggprism)
-library(stringr)
-library(MetaboAnalystR)
-library(pls)
-library(reshape2)
-library(igraph)
+# ==================================================================================================
+# 0_packages.R
+# Purpose: Load all R packages and define shared helper functions used across the analysis scripts.
+# Run order: Source this script first before running any downstream analysis script.
+# Notes for reviewers/readers:
+#   - This file does not run analyses by itself.
+#   - The main helper function below maps metabolite names to broad lipid/metabolite classes.
+#   - Package installation commands are intentionally left commented to avoid changing a user's system.
+# ==================================================================================================
 
-library(RJSONIO)
-library(pROC)
+# ---- Helper function ----------------------------------------------------------
 
-library(ggvenn)
-library(ggVennDiagram)
-library(RColorBrewer)
-library(cutpointr)
-library(survival)
-library(survminer)
-library(tidycmprsk)
-library(ggsurvfit)
-library(randomForest)
-library(datasets)
-library(caret)
-library(metafor)
-library(ggpattern)
+load_required_packages <- function(packages) {
+  missing_packages <- packages[!vapply(packages, requireNamespace, logical(1), quietly = TRUE)]
+  
+  if (length(missing_packages) > 0) {
+    stop(
+      "The following required packages are not installed: ",
+      paste(missing_packages, collapse = ", "),
+      "\nPlease install them before running the analysis."
+    )
+  }
+  
+  invisible(
+    lapply(packages, function(pkg) {
+      suppressPackageStartupMessages(
+        library(pkg, character.only = TRUE)
+      )
+    })
+  )
+}
 
-#install.packages("Rtsne")
-#library(Rtsne)
-#install.packages("mdatools")
-#library(mdatools)
-#library(rapportools)
-#install.packages("rapport")
-# install.packages("remotes")
-# library(remotes)
-# remotes::install_github("xia-lab/MetaboAnalystR")
-#if (!requireNamespace("BiocManager", quietly = TRUE))
-#  install.packages("BiocManager")
-#BiocManager::install("ComplexHeatmap")
-#library(preprocessCore)
-# library(fuzzyjoin)
+# ---- Core data handling -------------------------------------------------------
+
+core_packages <- c(
+  "readxl",
+  "openxlsx",
+  "readr",
+  "dplyr",
+  "tidyr",
+  "tibble",
+  "purrr",
+  "stringr",
+  "forcats",
+  "reshape2"
+)
+
+# ---- Statistics and modeling --------------------------------------------------
+
+statistics_packages <- c(
+  "rstatix",
+  "broom",
+  "emmeans",
+  "survival",
+  "survminer",
+  "tidycmprsk",
+  "ggsurvfit",
+  "pROC",
+  "cutpointr",
+  "randomForest",
+  "caret",
+  "pls",
+  "metafor"
+)
+
+# ---- Plotting and visualization ----------------------------------------------
+
+plotting_packages <- c(
+  "ggplot2",
+  "ggrepel",
+  "ggpubr",
+  "gridExtra",
+  "hrbrthemes",
+  "ggprism",
+  "plotly",
+  "ComplexHeatmap",
+  "ggvenn",
+  "ggVennDiagram",
+  "RColorBrewer",
+  "ggpattern"
+)
+
+# ---- Network and specialized utilities ---------------------------------------
+
+specialized_packages <- c(
+  "igraph",
+  "RJSONIO",
+  "MetaboAnalystR"
+)
+
+# ---- Load all packages --------------------------------------------------------
+
+required_packages <- c(
+  core_packages,
+  statistics_packages,
+  plotting_packages,
+  specialized_packages
+)
+
+load_required_packages(required_packages)
+
 
 ### Functions
 

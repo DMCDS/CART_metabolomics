@@ -179,6 +179,115 @@ p_time_ac_vat_subset <- bl_cohort_1_all_timepoints_long %>%
 p_time_ac_vat_subset
 ggsave("Figures_Manuscript/time/time_ac_vat_subset.svg", plot = p_time_ac_vat_subset, height = 2.5, width = 7)
 
+### REVISIONS
+# Subset of ACs for the figure
+moi_all_ac_subset <- c("AC-(02:0)", "AC-(06:0)", "AC-(10:0)", "AC-(22:1)")
+plot_time_ac_vat_subset <- bl_cohort_1_all_timepoints_long %>%
+  filter(
+    metabolite %in% moi_all_ac_subset,
+    !is.na(level),
+    !is.na(VAT_survival),
+    !is.na(Timepoint)
+  ) %>%
+  mutate(
+    Timepoint_plot = case_when(
+      Timepoint %in% c(1, "1", "D0", "Day 0", "day0") ~ "0",
+      Timepoint %in% c(2, "2", "3-5", "D3-5", "Day 3-5", "day3-5") ~ "3-5",
+      Timepoint %in% c(3, "3", "14", "D14", "Day 14", "day14") ~ "14",
+      TRUE ~ as.character(Timepoint)
+    ),
+    Timepoint_plot = factor(Timepoint_plot, levels = c("0", "3-5", "14")),
+    VAT_survival = factor(
+      VAT_survival,
+      levels = c("high", "low"),
+      labels = c("High VAT", "Low VAT")
+    )
+  ) %>%
+  filter(!is.na(Timepoint_plot))
+
+p_time_ac_vat_subset_v2 <- ggplot(
+  plot_time_ac_vat_subset,
+  aes(
+    x = Timepoint_plot,
+    y = level,
+    color = VAT_survival,
+    fill = VAT_survival
+  )
+) +
+  geom_boxplot(
+    width = 0.6,
+    alpha = 0.4,
+    outlier.shape = NA
+  ) +
+  geom_jitter(
+    width = 0.15,
+    size = 1.4,
+    alpha = 0.25
+  ) +
+  geom_pwc(
+    aes(group = Timepoint_plot),
+    method = "wilcox_test",
+    ref.group = 1,                 # first x-group = day 0
+    p.adjust.method = "fdr",
+    p.adjust.by = "panel",
+    label = "p.adj.signif",        # shows *, **, *** and ns
+    hide.ns = FALSE,
+    tip.length = 0.01,
+    bracket.size = 0.3,
+    label.size = 3,
+    step.increase = 0.1,
+    bracket.nudge.y = -0.15
+  ) +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = 1),
+    linewidth = 0.8
+  ) +
+  stat_summary(
+    fun = median,
+    geom = "point",
+    size = 1.8
+  ) +
+  scale_color_manual(
+    values = c("High VAT" = "#6e51a0", "Low VAT" = "#c63735")
+  ) +
+  scale_fill_manual(
+    values = c("High VAT" = "#6e51a0", "Low VAT" = "#c63735")
+  ) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0.05, 0.18))
+  ) +
+  ggh4x::facet_grid2(
+    rows = vars(VAT_survival),
+    cols = vars(metabolite),
+    scales = "free_y",
+    independent = "y"
+  ) +
+  labs(
+    x = "Timepoint",
+    y = "Serum level"
+  ) +
+  guides(
+    color = "none",
+    fill = "none"
+  ) +
+  theme_classic() +
+  theme(
+    strip.background = element_blank(),
+    strip.text.x = element_text(size = 9),
+    strip.text.y = element_blank(),
+    strip.text.y.left = element_blank(),
+    strip.ticks = element_blank(),
+    axis.title.x = element_text(margin = ggplot2::margin(t = 8)),
+    axis.title.y = element_text(margin = ggplot2::margin(r = 8)),
+    panel.spacing = grid::unit(0.8, "lines")
+  )
+
+p_time_ac_vat_subset_v2
+
+ggsave("Figures_Manuscript/time/p_time_ac_vat_subset_v2.svg", plot = p_time_ac_vat_subset_v2, height = 3.5, width = 5.5)
+
 
 ## Looking at time course of LPCs
 # Extracting all LPCs in one vector
@@ -898,4 +1007,580 @@ p_time_lysopaf_vat_subset <- bl_cohort_1_all_timepoints_long %>%
 
 p_time_lysopaf_vat_subset
 ggsave("Figures_Manuscript/time/time_lysopaf_vat_subset.svg", plot = p_time_lysopaf_vat_subset, height = 2.5, width = 4.1)
+
+
+
+### REVISIONS
+### LPC subset
+moi_all_lpc_subset <- c("LPC-(16:01)", "LPC-(18:01)", "LPC-(20:00)", "LPC-(24:01)")
+
+plot_time_lpc_vat_subset <- bl_cohort_1_all_timepoints_long %>%
+  filter(
+    metabolite %in% moi_all_lpc_subset,
+    !is.na(level),
+    !is.na(VAT_survival),
+    !is.na(Timepoint),
+    level < 300
+  ) %>%
+  mutate(
+    Timepoint_plot = case_when(
+      Timepoint %in% c(1, "1", "D0", "Day 0", "day0") ~ "0",
+      Timepoint %in% c(2, "2", "3-5", "D3-5", "Day 3-5", "day3-5") ~ "3-5",
+      Timepoint %in% c(3, "3", "14", "D14", "Day 14", "day14") ~ "14",
+      TRUE ~ as.character(Timepoint)
+    ),
+    Timepoint_plot = factor(Timepoint_plot, levels = c("0", "3-5", "14")),
+    VAT_survival = factor(
+      VAT_survival,
+      levels = c("high", "low"),
+      labels = c("High VAT", "Low VAT")
+    )
+  ) %>%
+  filter(!is.na(Timepoint_plot))
+
+p_time_lpc_vat_subset_v2 <- ggplot(
+  plot_time_lpc_vat_subset,
+  aes(
+    x = Timepoint_plot,
+    y = level,
+    color = VAT_survival,
+    fill = VAT_survival
+  )
+) +
+  geom_boxplot(
+    width = 0.6,
+    alpha = 0.4,
+    outlier.shape = NA
+  ) +
+  geom_jitter(
+    width = 0.15,
+    size = 1.4,
+    alpha = 0.25
+  ) +
+  geom_pwc(
+    aes(group = Timepoint_plot),
+    method = "wilcox_test",
+    ref.group = 1,
+    p.adjust.method = "fdr",
+    p.adjust.by = "panel",
+    label = "p.adj.signif",
+    hide.ns = FALSE,
+    tip.length = 0.01,
+    bracket.size = 0.3,
+    label.size = 3,
+    step.increase = 0.1,
+    bracket.nudge.y = -0.15
+  ) +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = 1),
+    linewidth = 0.8
+  ) +
+  stat_summary(
+    fun = median,
+    geom = "point",
+    size = 1.8
+  ) +
+  scale_color_manual(
+    values = c("High VAT" = "#6e51a0", "Low VAT" = "#c63735")
+  ) +
+  scale_fill_manual(
+    values = c("High VAT" = "#6e51a0", "Low VAT" = "#c63735")
+  ) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0.05, 0.18))
+  ) +
+  ggh4x::facet_grid2(
+    rows = vars(VAT_survival),
+    cols = vars(metabolite),
+    scales = "free_y",
+    independent = "y"
+  ) +
+  labs(
+    x = "Timepoint",
+    y = "Serum level"
+  ) +
+  guides(
+    color = "none",
+    fill = "none"
+  ) +
+  theme_classic() +
+  theme(
+    strip.background = element_blank(),
+    strip.text.x = element_text(size = 9),
+    strip.text.y = element_blank(),
+    strip.text.y.left = element_blank(),
+    strip.ticks = element_blank(),
+    axis.title.x = element_text(margin = ggplot2::margin(t = 8)),
+    axis.title.y = element_text(margin = ggplot2::margin(r = 8)),
+    panel.spacing = grid::unit(0.8, "lines")
+  )
+
+p_time_lpc_vat_subset_v2
+
+ggsave(
+  "Figures_Manuscript/time/p_time_lpc_vat_subset_v2.svg",
+  plot = p_time_lpc_vat_subset_v2,
+  height = 3.5,
+  width = 5.5
+)
+
+### PEA subset
+moi_all_pea_subset <- c("PEA-(28:00)", "PEA-(32:02)", "PEA-(38:06)", "PEA-(40:06)")
+
+plot_time_pea_vat_subset <- bl_cohort_1_all_timepoints_long %>%
+  filter(
+    metabolite %in% moi_all_pea_subset,
+    !is.na(level),
+    !is.na(VAT_survival),
+    !is.na(Timepoint)
+  ) %>%
+  mutate(
+    Timepoint_plot = case_when(
+      Timepoint %in% c(1, "1", "D0", "Day 0", "day0") ~ "0",
+      Timepoint %in% c(2, "2", "3-5", "D3-5", "Day 3-5", "day3-5") ~ "3-5",
+      Timepoint %in% c(3, "3", "14", "D14", "Day 14", "day14") ~ "14",
+      TRUE ~ as.character(Timepoint)
+    ),
+    Timepoint_plot = factor(Timepoint_plot, levels = c("0", "3-5", "14")),
+    VAT_survival = factor(
+      VAT_survival,
+      levels = c("high", "low"),
+      labels = c("High VAT", "Low VAT")
+    )
+  ) %>%
+  filter(!is.na(Timepoint_plot))
+
+p_time_pea_vat_subset_v2 <- ggplot(
+  plot_time_pea_vat_subset,
+  aes(
+    x = Timepoint_plot,
+    y = level,
+    color = VAT_survival,
+    fill = VAT_survival
+  )
+) +
+  geom_boxplot(
+    width = 0.6,
+    alpha = 0.4,
+    outlier.shape = NA
+  ) +
+  geom_jitter(
+    width = 0.15,
+    size = 1.4,
+    alpha = 0.25
+  ) +
+  geom_pwc(
+    aes(group = Timepoint_plot),
+    method = "wilcox_test",
+    ref.group = 1,
+    p.adjust.method = "fdr",
+    p.adjust.by = "panel",
+    label = "p.adj.signif",
+    hide.ns = FALSE,
+    tip.length = 0.01,
+    bracket.size = 0.3,
+    label.size = 3,
+    step.increase = 0.1,
+    bracket.nudge.y = -0.15
+  ) +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = 1),
+    linewidth = 0.8
+  ) +
+  stat_summary(
+    fun = median,
+    geom = "point",
+    size = 1.8
+  ) +
+  scale_color_manual(
+    values = c("High VAT" = "#6e51a0", "Low VAT" = "#c63735")
+  ) +
+  scale_fill_manual(
+    values = c("High VAT" = "#6e51a0", "Low VAT" = "#c63735")
+  ) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0.05, 0.18))
+  ) +
+  ggh4x::facet_grid2(
+    rows = vars(VAT_survival),
+    cols = vars(metabolite),
+    scales = "free_y",
+    independent = "y"
+  ) +
+  labs(
+    x = "Timepoint",
+    y = "Serum level"
+  ) +
+  guides(
+    color = "none",
+    fill = "none"
+  ) +
+  theme_classic() +
+  theme(
+    strip.background = element_blank(),
+    strip.text.x = element_text(size = 9),
+    strip.text.y = element_blank(),
+    strip.text.y.left = element_blank(),
+    strip.ticks = element_blank(),
+    axis.title.x = element_text(margin = ggplot2::margin(t = 8)),
+    axis.title.y = element_text(margin = ggplot2::margin(r = 8)),
+    panel.spacing = grid::unit(0.8, "lines")
+  )
+
+p_time_pea_vat_subset_v2
+
+ggsave(
+  "Figures_Manuscript/time/p_time_pea_vat_subset_v2.svg",
+  plot = p_time_pea_vat_subset_v2,
+  height = 3.5,
+  width = 5.5
+)
+
+### SM subset
+moi_all_SM_subset <- c("SM-(d18:1/16:01)")
+
+plot_time_sm_vat_subset <- bl_cohort_1_all_timepoints_long %>%
+  filter(
+    metabolite %in% moi_all_SM_subset,
+    !is.na(level),
+    !is.na(VAT_survival),
+    !is.na(Timepoint),
+    level < 300
+  ) %>%
+  mutate(
+    Timepoint_plot = case_when(
+      Timepoint %in% c(1, "1", "D0", "Day 0", "day0") ~ "0",
+      Timepoint %in% c(2, "2", "3-5", "D3-5", "Day 3-5", "day3-5") ~ "3-5",
+      Timepoint %in% c(3, "3", "14", "D14", "Day 14", "day14") ~ "14",
+      TRUE ~ as.character(Timepoint)
+    ),
+    Timepoint_plot = factor(Timepoint_plot, levels = c("0", "3-5", "14")),
+    VAT_survival = factor(
+      VAT_survival,
+      levels = c("high", "low"),
+      labels = c("High VAT", "Low VAT")
+    )
+  ) %>%
+  filter(!is.na(Timepoint_plot))
+
+p_time_sm_vat_subset_v2 <- ggplot(
+  plot_time_sm_vat_subset,
+  aes(
+    x = Timepoint_plot,
+    y = level,
+    color = VAT_survival,
+    fill = VAT_survival
+  )
+) +
+  geom_boxplot(
+    width = 0.6,
+    alpha = 0.4,
+    outlier.shape = NA
+  ) +
+  geom_jitter(
+    width = 0.15,
+    size = 1.4,
+    alpha = 0.25
+  ) +
+  geom_pwc(
+    aes(group = Timepoint_plot),
+    method = "wilcox_test",
+    ref.group = 1,
+    p.adjust.method = "fdr",
+    p.adjust.by = "panel",
+    label = "p.adj.signif",
+    hide.ns = FALSE,
+    tip.length = 0.01,
+    bracket.size = 0.3,
+    label.size = 3,
+    step.increase = 0.1,
+    bracket.nudge.y = -0.15
+  ) +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = 1),
+    linewidth = 0.8
+  ) +
+  stat_summary(
+    fun = median,
+    geom = "point",
+    size = 1.8
+  ) +
+  scale_color_manual(
+    values = c("High VAT" = "#6e51a0", "Low VAT" = "#c63735")
+  ) +
+  scale_fill_manual(
+    values = c("High VAT" = "#6e51a0", "Low VAT" = "#c63735")
+  ) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0.05, 0.18))
+  ) +
+  ggh4x::facet_grid2(
+    rows = vars(VAT_survival),
+    cols = vars(metabolite),
+    scales = "free_y",
+    independent = "y"
+  ) +
+  labs(
+    x = "Timepoint",
+    y = "Serum level"
+  ) +
+  guides(
+    color = "none",
+    fill = "none"
+  ) +
+  theme_classic() +
+  theme(
+    strip.background = element_blank(),
+    strip.text.x = element_text(size = 9),
+    strip.text.y = element_blank(),
+    strip.text.y.left = element_blank(),
+    strip.ticks = element_blank(),
+    axis.title.x = element_text(margin = ggplot2::margin(t = 8)),
+    axis.title.y = element_text(margin = ggplot2::margin(r = 8)),
+    panel.spacing = grid::unit(0.8, "lines")
+  )
+
+p_time_sm_vat_subset_v2
+
+ggsave(
+  "Figures_Manuscript/time/p_time_sm_vat_subset_v2.svg",
+  plot = p_time_sm_vat_subset_v2,
+  height = 3.5,
+  width = 1.8
+)
+
+### Plasmalogen subset
+moi_all_Plas_subset <- c("PlasC-(40:05)", "PlasEA-(38:03)")
+
+plot_time_plas_vat_subset <- bl_cohort_1_all_timepoints_long %>%
+  filter(
+    metabolite %in% moi_all_Plas_subset,
+    !is.na(level),
+    !is.na(VAT_survival),
+    !is.na(Timepoint)
+  ) %>%
+  mutate(
+    Timepoint_plot = case_when(
+      Timepoint %in% c(1, "1", "D0", "Day 0", "day0") ~ "0",
+      Timepoint %in% c(2, "2", "3-5", "D3-5", "Day 3-5", "day3-5") ~ "3-5",
+      Timepoint %in% c(3, "3", "14", "D14", "Day 14", "day14") ~ "14",
+      TRUE ~ as.character(Timepoint)
+    ),
+    Timepoint_plot = factor(Timepoint_plot, levels = c("0", "3-5", "14")),
+    VAT_survival = factor(
+      VAT_survival,
+      levels = c("high", "low"),
+      labels = c("High VAT", "Low VAT")
+    )
+  ) %>%
+  filter(!is.na(Timepoint_plot))
+
+p_time_plas_vat_subset_v2 <- ggplot(
+  plot_time_plas_vat_subset,
+  aes(
+    x = Timepoint_plot,
+    y = level,
+    color = VAT_survival,
+    fill = VAT_survival
+  )
+) +
+  geom_boxplot(
+    width = 0.6,
+    alpha = 0.4,
+    outlier.shape = NA
+  ) +
+  geom_jitter(
+    width = 0.15,
+    size = 1.4,
+    alpha = 0.25
+  ) +
+  geom_pwc(
+    aes(group = Timepoint_plot),
+    method = "wilcox_test",
+    ref.group = 1,
+    p.adjust.method = "fdr",
+    p.adjust.by = "panel",
+    label = "p.adj.signif",
+    hide.ns = FALSE,
+    tip.length = 0.01,
+    bracket.size = 0.3,
+    label.size = 3,
+    step.increase = 0.1,
+    bracket.nudge.y = -0.15
+  ) +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = 1),
+    linewidth = 0.8
+  ) +
+  stat_summary(
+    fun = median,
+    geom = "point",
+    size = 1.8
+  ) +
+  scale_color_manual(
+    values = c("High VAT" = "#6e51a0", "Low VAT" = "#c63735")
+  ) +
+  scale_fill_manual(
+    values = c("High VAT" = "#6e51a0", "Low VAT" = "#c63735")
+  ) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0.05, 0.18))
+  ) +
+  ggh4x::facet_grid2(
+    rows = vars(VAT_survival),
+    cols = vars(metabolite),
+    scales = "free_y",
+    independent = "y"
+  ) +
+  labs(
+    x = "Timepoint",
+    y = "Serum level"
+  ) +
+  guides(
+    color = "none",
+    fill = "none"
+  ) +
+  theme_classic() +
+  theme(
+    strip.background = element_blank(),
+    strip.text.x = element_text(size = 9),
+    strip.text.y = element_blank(),
+    strip.text.y.left = element_blank(),
+    strip.ticks = element_blank(),
+    axis.title.x = element_text(margin = ggplot2::margin(t = 8)),
+    axis.title.y = element_text(margin = ggplot2::margin(r = 8)),
+    panel.spacing = grid::unit(0.8, "lines")
+  )
+
+p_time_plas_vat_subset_v2
+
+ggsave(
+  "Figures_Manuscript/time/p_time_plas_vat_subset_v2.svg",
+  plot = p_time_plas_vat_subset_v2,
+  height = 3.5,
+  width = 3
+)
+
+### lysoPAF subset
+moi_all_lysopaf_subset <- c("lysoPAF-(16:0)", "lysoPAF-(18:0)")
+
+plot_time_lysopaf_vat_subset <- bl_cohort_1_all_timepoints_long %>%
+  filter(
+    metabolite %in% moi_all_lysopaf_subset,
+    !is.na(level),
+    !is.na(VAT_survival),
+    !is.na(Timepoint)
+  ) %>%
+  mutate(
+    Timepoint_plot = case_when(
+      Timepoint %in% c(1, "1", "D0", "Day 0", "day0") ~ "0",
+      Timepoint %in% c(2, "2", "3-5", "D3-5", "Day 3-5", "day3-5") ~ "3-5",
+      Timepoint %in% c(3, "3", "14", "D14", "Day 14", "day14") ~ "14",
+      TRUE ~ as.character(Timepoint)
+    ),
+    Timepoint_plot = factor(Timepoint_plot, levels = c("0", "3-5", "14")),
+    VAT_survival = factor(
+      VAT_survival,
+      levels = c("high", "low"),
+      labels = c("High VAT", "Low VAT")
+    )
+  ) %>%
+  filter(!is.na(Timepoint_plot))
+
+p_time_lysopaf_vat_subset_v2 <- ggplot(
+  plot_time_lysopaf_vat_subset,
+  aes(
+    x = Timepoint_plot,
+    y = level,
+    color = VAT_survival,
+    fill = VAT_survival
+  )
+) +
+  geom_boxplot(
+    width = 0.6,
+    alpha = 0.4,
+    outlier.shape = NA
+  ) +
+  geom_jitter(
+    width = 0.15,
+    size = 1.4,
+    alpha = 0.25
+  ) +
+  geom_pwc(
+    aes(group = Timepoint_plot),
+    method = "wilcox_test",
+    ref.group = 1,
+    p.adjust.method = "fdr",
+    p.adjust.by = "panel",
+    label = "p.adj.signif",
+    hide.ns = FALSE,
+    tip.length = 0.01,
+    bracket.size = 0.3,
+    label.size = 3,
+    step.increase = 0.1,
+    bracket.nudge.y = -0.15
+  ) +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = 1),
+    linewidth = 0.8
+  ) +
+  stat_summary(
+    fun = median,
+    geom = "point",
+    size = 1.8
+  ) +
+  scale_color_manual(
+    values = c("High VAT" = "#6e51a0", "Low VAT" = "#c63735")
+  ) +
+  scale_fill_manual(
+    values = c("High VAT" = "#6e51a0", "Low VAT" = "#c63735")
+  ) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0.05, 0.18))
+  ) +
+  ggh4x::facet_grid2(
+    rows = vars(VAT_survival),
+    cols = vars(metabolite),
+    scales = "free_y",
+    independent = "y"
+  ) +
+  labs(
+    x = "Timepoint",
+    y = "Serum level"
+  ) +
+  guides(
+    color = "none",
+    fill = "none"
+  ) +
+  theme_classic() +
+  theme(
+    strip.background = element_blank(),
+    strip.text.x = element_text(size = 9),
+    strip.text.y = element_blank(),
+    strip.text.y.left = element_blank(),
+    strip.ticks = element_blank(),
+    axis.title.x = element_text(margin = ggplot2::margin(t = 8)),
+    axis.title.y = element_text(margin = ggplot2::margin(r = 8)),
+    panel.spacing = grid::unit(0.8, "lines")
+  )
+
+p_time_lysopaf_vat_subset_v2
+
+ggsave(
+  "Figures_Manuscript/time/p_time_lysopaf_vat_subset_v2.svg",
+  plot = p_time_lysopaf_vat_subset_v2,
+  height = 3.5,
+  width = 3
+)
+
 

@@ -1,6 +1,22 @@
-### Regradeting analyses for CRS
-###
-### Identification of metabolites from VAT survival analysis ----
+# ==================================================================================================
+# 2_crs.R
+# Purpose: Discovery cohort CRS-focused metabolomics analyses.
+# Main inputs:
+#   - Input_files/t2_cohort_VAT_crs.csv
+#   - Input_files/t2_cohort_SAT_crs.csv
+#   - Input_files/t2_cohort_TAT_crs.csv
+# Main outputs:
+#   - CRS-associated metabolite volcano/PCA/correlation/meta-analysis figures in Figures_Manuscript/
+# Dependencies:
+#   - Run source("0_packages.R") first.
+#   - Run after 1_surv.R, because 1_surv.R creates several CRS input files and shared objects.
+# Notes for reviewers/readers:
+#   - CRS group definitions are based on adiposity cutoffs and clinical CRS grading.
+#   - VAT, SAT, and TAT analyses are repeated in parallel blocks for transparency.
+# ==================================================================================================
+
+
+### Identification of metabolites from VAT differences for CRS and feature selection ----
 ### 
 
 ## 1. Analysis of day 0 differences to extract metabolites
@@ -180,7 +196,7 @@ t2_vat_crs_plsda_metabolites <- t2_vat_crs_PLSDA_VIP %>%
 t2_vat_crs_metabolites <- sort(union(t2_vat_crs_plsda_metabolites, t2_vat_crs_volcano_metabolites))
 
 ###
-### Identification of metabolites from VAT survival analysis ----
+### Identification of metabolites from SAT differences for CRS and feature selection ----
 ### 
 
 ## 1. Analysis of day 0 differences to extract metabolites
@@ -361,7 +377,7 @@ t2_sat_crs_metabolites <- sort(union(t2_sat_crs_plsda_metabolites, t2_sat_crs_vo
 ###
 
 
-### Identification of metabolites from VAT survival analysis ----
+### Identification of metabolites from TAT differences for CRS and feature selection ----
 ### 
 
 ## 1. Analysis of day 0 differences to extract metabolites
@@ -541,8 +557,8 @@ t2_tat_crs_plsda_metabolites <- t2_tat_crs_PLSDA_VIP %>%
 t2_tat_crs_metabolites <- sort(union(t2_tat_crs_plsda_metabolites, t2_tat_crs_volcano_metabolites))
 ###
 
-
-### Comparison of filtered survival metabolites with BC levels ----
+###
+### CRS: Correlation of filtered survival metabolites with BC levels (Figure 2H, S6) ----
 ###
 
 ## Comparison of VAT metabolites with VAT measurements
@@ -584,8 +600,6 @@ for (met in t2_vat_crs_metabolites) {
     )
   )
   
-  # Create a scatter plot with regression line
-  # Use aes(x = VAT, y = .data[[met]]) instead of aes_string()
   p <- ggplot(t2_vat_crs_norm_bc, aes(x = VAT, y = .data[[met]])) +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
@@ -602,7 +616,6 @@ for (met in t2_vat_crs_metabolites) {
   plot_list_t2_vat_crs_corr[[met]] <- p
 }
 
-# If you want to see all the plots at once, you can do:
 # Create the arranged grid
 grid_combined <- arrangeGrob(grobs = plot_list_t2_vat_crs_corr, ncol = 4)
 
@@ -646,7 +659,6 @@ for (met in t2_sat_crs_metabolites) {
   )
   
   # Create a scatter plot with regression line
-  # Use aes(x = VAT, y = .data[[met]]) instead of aes_string()
   p <- ggplot(t2_vat_crs_norm_bc, aes(x = VAT, y = .data[[met]])) +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
@@ -663,7 +675,6 @@ for (met in t2_sat_crs_metabolites) {
   plot_list_t2_sat_crs_corr[[met]] <- p
 }
 
-# If you want to see all the plots at once, you can do:
 # Create the arranged grid
 grid_combined <- arrangeGrob(grobs = plot_list_t2_sat_crs_corr, ncol = 4)
 
@@ -706,9 +717,7 @@ for (met in t2_tat_crs_metabolites) {
       stringsAsFactors = FALSE
     )
   )
-  
-  # Create a scatter plot with regression line
-  # Use aes(x = VAT, y = .data[[met]]) instead of aes_string()
+
   p <- ggplot(t2_vat_crs_norm_bc, aes(x = VAT, y = .data[[met]])) +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
@@ -725,7 +734,6 @@ for (met in t2_tat_crs_metabolites) {
   plot_list_t2_tat_crs_corr[[met]] <- p
 }
 
-# If you want to see all the plots at once, you can do:
 # Create the arranged grid
 grid_combined <- arrangeGrob(grobs = plot_list_t2_tat_crs_corr, ncol = 4)
 
@@ -749,7 +757,7 @@ t2_tat_crs_corr_filter <- t2_tat_crs_corr |>
   pull(Metabolite) |>
   unname()
 
-### Common and different metabolites to the VAT adipose depot ----
+### CRS: Common and different metabolites to the VAT adipose depot ----
 ###
 
 # Common to all three
@@ -787,9 +795,8 @@ t2_all_crs_corr_filter <- sort(unique(c(
 )))
 
 ###
-### Associations with survival ----
+### Associations with CRS development using logistic regression models (Figure 2B) ----
 ###
-
 
 ## Performing a multivariable log regression analysis for CRS grade >= 2
 str(t2_vat_crs_norm_bc)
@@ -832,16 +839,15 @@ t2_all_glm_adjusted <- t2_all_glm_adjusted|>
 
 t2_all_glm_adjusted$group <- sapply(as.character(t2_all_glm_adjusted$marker), get_group_new)
 
-# Double-check that meta_df has the columns you expect:
+# Double-check that meta_df:
 t2_all_glm_adjusted <- t2_all_glm_adjusted |> filter(!(marker %in% c("PI-(38:07)", "PI-(40:03)","PI-(40:08)","PI-(40:09)")))
 
 t2_all_glm_adjusted <- t2_all_glm_adjusted |>
-  arrange(group, desc(OR)) |>  # You can change `desc(HR)` to another column if needed
+  arrange(group, desc(OR)) |> 
   mutate(marker = factor(marker, levels = unique(marker)))
 
 
 p_crs_group <- t2_all_glm_adjusted |>
-  #filter(FDR <= 0.1)|>
   ggplot()+
   geom_point(aes(x = marker, y = OR, color = group),
              size = 3, shape = 19, alpha = 0.6)+
@@ -857,7 +863,7 @@ p_crs_group <- t2_all_glm_adjusted |>
   theme(
     axis.title = element_text(size = 11),
     axis.text = element_text(size = 9),
-    plot.title = element_text(size = 14, face = "bold")  # Adjust the size and style as needed
+    plot.title = element_text(size = 14, face = "bold")  
   )
 
 print(p_crs_group)
@@ -865,19 +871,14 @@ ggsave("Figures_Manuscript/meta_crs_group.svg", plot = p_crs_group, width =9, he
 
 
 ## Meta-analysis of group effects
-
-# Now create the columns needed for meta-analysis
+# columns needed for meta-analysis
 meta_crs <- t2_all_glm_adjusted %>%
   mutate(
     logOR    = log(OR),
     logLower = log(lower95),
     logUpper = log(upper95),
-    # approximate standard error for log(HR)
     SE_logOR = (logUpper - logLower) / (2 * 1.96)
   )
-
-## !! Multiple values are the same for different metabolites - need to be removed
-str(meta_crs)
 
 
 meta_results_crs <- meta_crs %>%
@@ -947,7 +948,7 @@ ggsave("Figures_Manuscript/meta_crs.svg", plot = p_meta_crs, width = 6, height =
 
 
 ###
-### Test distribution analysis
+### CRS: Distribution of lipids based on adipose tissue compartment (Fig. 2G) ----
 ###
 
 group_colors <- c(
@@ -1215,8 +1216,8 @@ crs_at_distr <- rbind(crs_ac_summary, crs_pea_summary, crs_lpc_summary, crs_lyso
 crs_at_distr<- crs_at_distr |>
   mutate(group_new = case_when(
     group == "only_tat" ~ "AT-shared",
-    group == "only_vat" ~ "VAT-derived",
-    group == "only_sat" ~ "SAT-derived",
+    group == "only_vat" ~ "VAT-correlated",
+    group == "only_sat" ~ "SAT-correlated",
     group == "tat_vat" ~ "VAT-enriched",
     group == "tat_sat" ~ "SAT-enriched",
     group == "vat_sat" ~ "AT-shared",
@@ -1234,9 +1235,9 @@ ggplot(crs_at_distr, aes(x = met_group, y = percentage, fill = group)) +
 
 crs_at_distr <- crs_at_distr |>
   mutate(group_new = factor(group_new, levels = c("AT-shared" ,
-                                                  "VAT-derived",
+                                                  "VAT-correlated",
                                                   "VAT-enriched",
-                                                  "SAT-derived",
+                                                  "SAT-correlated",
                                                   "SAT-enriched" )))
 
 p_crs_distr <- ggplot(crs_at_distr, aes(x = met_group, y = percentage, fill = group_new)) +
@@ -1250,7 +1251,9 @@ p_crs_distr <- ggplot(crs_at_distr, aes(x = met_group, y = percentage, fill = gr
 print(p_crs_distr)
 ggsave("Figures_Manuscript/p_crs_distr.svg", plot = p_crs_distr, width = 5, height = 3)
 
-### Analysis of CRS distribution and CRS development, based on metabolite examples
+###
+### Analysis of CRS distribution and CRS development, based on representative metabolites (Fig. 2C-F) ----
+###
 
 #LPC
 p_crs_lpc <- t2_vat_crs_norm_bc %>%
@@ -1465,17 +1468,16 @@ hmdb_dict <- read.xlsx("Input_files/Werner_HMDB_translation.xlsx")
 
 
 ###
-### Clinical analysis for CRS
+### Clinical analysis for CRS (Figure 2A) ----
 ###
 
 p_crs_training_pie <- all_master |> 
   filter(cohort == "training") |> 
   ggplot(aes(x = "", fill = factor(Maximaler.CRS.Grad, levels = c(0, 1, 2, 3)))) +
   geom_bar(width = 1) +
-  coord_polar(theta = "y", start = 0, direction = -1) +  # start at 12 o'clock and go clockwise
+  coord_polar(theta = "y", start = 0, direction = -1) + 
   scale_fill_manual(values = c("#FFF5E1", "#FFDAB9", "#FFC04C", "#FF8C00"), name = "CRS grade") +
-  theme_void()  # clean theme for pie chart
-  #theme(legend.title = element_blank())
+  theme_void() 
 
 ggsave("Figures_Manuscript/crs_training_pie.svg", plot = p_crs_training_pie, width = 3, height = 3)
 
@@ -1531,27 +1533,5 @@ p_crs_ci_vat <- ggsurvplot(crs_ci_vat,
 p_crs_ci_vat
 ggsave(filename = "Figures_Manuscript/p_crs_ci_vat.svg", plot = p_crs_ci_vat$plot,
        width = 3, height = 2.5)
-
-
-# all_master |> 
-#   filter(cohort == "training") |> 
-#   ggplot(aes(x = factor(Maximaler.CRS.Grad, levels = c(0, 1, 2, 3)), y = SAT)) +
-#   geom_jitter(aes(fill = factor(Maximaler.CRS.Grad), color = factor(Maximaler.CRS.Grad)), width = 0.2, size = 3, alpha = 0.9) +
-#   geom_boxplot(aes(fill =  factor(Maximaler.CRS.Grad)), outlier.shape = NA, alpha = 0.7) +
-#   geom_pwc(ref.group = "0", method = "wilcox.test",
-#            #tip.length = 0.01,
-#            label.size = 4) +
-#   scale_fill_manual(values = c("#FFF5E1", "#FFDAB9", "#FFC04C", "#FF8C00")) +
-#   scale_color_manual(values = c("#FFF5E1", "#FFDAB9", "#FFC04C", "#FF8C00")) +
-#   labs(x = "CRS grade", y = "VAT [cm²]") +
-#   guides(color = "none", fill = "none")+
-#   theme_classic() +
-#   theme(
-#     axis.text = element_text(size = 9),
-#     axis.title = element_text(size = 9),
-#     legend.title = element_text(size = 9),
-#     legend.text = element_text(size = 9)
-#   )
-
 
 
