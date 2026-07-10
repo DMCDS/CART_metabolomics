@@ -17,14 +17,13 @@
 ### Data loading and variable definition ----
 ###
 
-input_file <- "input_files/invitro_combined.xlsx"
+input_file <- "Input_files/invitro_combined.xlsx"
 sheet_name <- "combined_long_for_R_updated_v3"
 
 outdir <- "invitro_analysis_results"
 dir.create(outdir, showWarnings = FALSE)
 
-# Conditions to exclude globally
-exclude_analytes <- c("Lyso16:1", "Palmitate")
+# Conditions 
 ac_analytes <- c("AC2:0", "AC10:0", "AC14:0", "AC18:1")
 control_analytes <- c("HPLM", "DMSO")
 
@@ -56,7 +55,6 @@ df <- df_raw %>%
     sample = as.character(sample),
     value = as.numeric(value)
   ) %>%
-  filter(!analyte %in% exclude_analytes) %>%
   mutate(
     concentration = factor(concentration, levels = c("phys", "supra")),
     group = factor(group),
@@ -81,7 +79,38 @@ df_main <- df %>%
 qc_counts <- df_main %>%
   count(screenshot, concentration, analyte, group, name = "n")
 
-#write_csv(qc_counts, file.path(outdir, "qc_counts_by_endpoint_condition_group.csv"))
+## Splitting end points
+viab <- df_main %>%
+  filter(screenshot == "viability") %>%
+  filter(group %in% c(cart_groups, "Target Only", "UT TCells")) %>%
+  mutate(
+    residual_viability = value,
+    killing_score = 100 - value
+  )
+
+markers <- df_main %>%
+  filter(screenshot != "viability") %>%
+  filter(group %in% cart_groups) %>%
+  mutate(
+    log_value = log2(value + 1)
+  )
+
+# Marker annotation
+markers <- markers %>%
+  mutate(
+    cell_type = case_when(
+      str_starts(screenshot, "CD4_") ~ "CD4",
+      str_starts(screenshot, "CD8_") ~ "CD8",
+      TRUE ~ NA_character_
+    ),
+    marker = str_remove(screenshot, "^CD4_"),
+    marker = str_remove(marker, "^CD8_"),
+    marker_category = case_when(
+      marker %in% c("CD25", "CD69", "PD1") ~ "activation",
+      marker %in% c("GSH", "cROS", "mSOX", "MitoRed", "MitoGreen") ~ "metabolic",
+      TRUE ~ "other"
+    )
+  )
 
 marker_long <- markers %>%
   filter(is_cart) %>%
@@ -104,8 +133,8 @@ unique(marker_long$marker)
 marker_long <- marker_long %>%
   mutate(
     construct_type = case_when(
-      group %in% c("CAR 74", "CAR 77") ~ "CD28z",
-      group %in% c("CAR 78", "CAR 80") ~ "41BB",
+      group %in% c("CAR 77") ~ "CD28z",
+      group %in% c("CAR 74") ~ "41BB",
       TRUE ~ NA_character_
     ),
     construct_type = factor(construct_type)

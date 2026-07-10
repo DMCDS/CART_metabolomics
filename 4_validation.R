@@ -545,7 +545,7 @@ cox_os  <- coxph(
 )
 
 pfs_ac_signature <- survfit(Surv(PFS_days/30.44, PFS_event) ~ AC_sig_group, 
-                            data = validation_master_t2 |> filter(Entity != "MM"))
+                            data = validation_master_t2)
 ggsurvplot(pfs_ac_signature,
            pval = T)
 p_km_pfs_ac_signature <- ggsurvplot(pfs_ac_signature,

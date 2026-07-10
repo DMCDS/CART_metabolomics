@@ -582,7 +582,7 @@ for (met in t2_vat_crs_metabolites) {
   corr_test <- cor.test(
     t2_vat_crs_norm_bc[[met]],
     t2_vat_crs_norm_bc[["VAT"]],
-    method = "graderson"
+    method = "pearson"
   )
   
   # Extract the correlation coefficient (r) and p-value
@@ -640,7 +640,7 @@ for (met in t2_sat_crs_metabolites) {
   corr_test <- cor.test(
     t2_vat_crs_norm_bc[[met]],
     t2_vat_crs_norm_bc[["VAT"]],
-    method = "graderson"
+    method = "pearson"
   )
   
   # Extract the correlation coefficient (r) and p-value
@@ -700,7 +700,7 @@ for (met in t2_tat_crs_metabolites) {
   corr_test <- cor.test(
     t2_vat_crs_norm_bc[[met]],
     t2_vat_crs_norm_bc[["VAT"]],
-    method = "graderson"
+    method = "pearson"
   )
   
   # Extract the correlation coefficient (r) and p-value
@@ -1025,7 +1025,7 @@ ggplot(crs_ac_summary, aes(x = "", y = count, fill = group)) +
 
 # Distribution of PEAs
 
-crs_grade_common_all <- get_PEAs(crs_common_all)
+crs_pea_common_all <- get_PEAs(crs_common_all)
 crs_pea_only_tat <- get_PEAs(crs_only_in_tat)
 crs_pea_only_vat <- get_PEAs(crs_only_in_vat)
 crs_pea_only_sat <- get_PEAs(crs_only_in_sat)
@@ -1460,11 +1460,6 @@ p_crs_ci_pea <- ggsurvplot(crs_ci_pea,
 )
 ggsave(filename = "Figures_Manuscript/p_crs_ci_pea.svg", plot = p_crs_ci_pea$plot,
        width = 3, height = 2.5)
-
-
-
-## Loading Werner HMDB dictionary
-hmdb_dict <- read.xlsx("Input_files/Werner_HMDB_translation.xlsx")
 
 
 ###
