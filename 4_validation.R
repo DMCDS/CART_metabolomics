@@ -306,7 +306,7 @@ p_crs_ci_val_vat
 ggsave(filename = "Figures_Manuscript/p_crs_ci_val_vat.svg", plot = p_crs_ci_val_vat$plot,
        width = 3, height = 2.5)
 
-crs_validation_moi <- c(crs_lysopaf_moi, crs_ac_moi, crs_pea_moi, crs_lpc_moi)
+crs_validation_vector <- c(crs_lysoPAF_vector, crs_ac_vector, crs_pea_vector, crs_lpc_vector)
 
 val_t2_norm_bc <- val_t2_norm_bc |> filter(!is.na(Entity))
 
@@ -322,7 +322,7 @@ t2_val_glm_adjusted <- data.frame(marker = character(),
                                   upper95 = numeric(),
                                   stringsAsFactors = FALSE)
 
-for(i in crs_validation_moi) {
+for(i in crs_validation_vector) {
   # Fit logistic regression model
   formula_str <- paste0("as.factor(CRS_high) ~ `",i,"` + Geschlecht + Costim")
   
@@ -463,14 +463,14 @@ validation_master_t2 <- validation_master |> filter(Time == "Day 2-5")
 
 # 1. calculate medians for each acetylcarnitine
 val_ac_med_vec <- validation_master_t2 %>% 
-  summarise(across(all_of(crs_ac_moi), ~ median(.x, na.rm = TRUE))) %>% 
+  summarise(across(all_of(crs_ac_vector), ~ median(.x, na.rm = TRUE))) %>% 
   unlist()
 
 # 2. createvalidation_master_t2# 2. create the AC_signature: count of ACs above median
 validation_master_t2 <- validation_master_t2 %>%
   rowwise() %>%
   mutate(
-    AC_signature = sum(c_across(all_of(crs_ac_moi)) > val_ac_med_vec)
+    AC_signature = sum(c_across(all_of(crs_ac_vector)) > val_ac_med_vec)
   ) %>%
   ungroup()
 
@@ -618,3 +618,271 @@ p_km_os_ac_signature
 ggsave(filename = "Figures_Manuscript/km/p_km_os_ac_signature.svg", plot = p_km_os_ac_signature$plot,
        width = 3, height = 2.5)
 
+
+
+### Kaplan-Meier plots for baseline survival analysis (Fig. S11)
+
+pfs_val_PEA3403 <- survfit(Surv(PFS_days/30.44, PFS_event) ~ ifelse(`PEA-(34:03)` > median(`PEA-(34:03)`), "PEA_high", "PEA_low"), data=val_t1_norm_bc)
+summary(pfs_val_PEA3403)
+summary(pfs_val_PEA3403, times = 365)
+p_km_pfsval_PEA3403 <- ggsurvplot(pfs_val_PEA3403,
+                                  ylab = "Estimated PFS",
+                                  xlab = "Months after CAR-T infusion",
+                                  break.time.by = 3,
+                                  xlim = c(0,26),
+                                  censor.size = 5,
+                                  pval = TRUE,
+                                  pval.coord = c(0.3, 0.05),
+                                  pval.size = 3,
+                                  size = 1.5,
+                                  axes.offset = F,
+                                  risk.table = F,
+                                  risk.table.title = "No. at risk",
+                                  risk.table.heigbcma.ht = .2,
+                                  survival.plot.heigbcma.ht = 0.9,
+                                  tables.y.text = FALSE,
+                                  tables.theme = theme_cleantable(base_size = 2),
+                                  conf.int = F,
+                                  ggtheme = theme_classic2(10),
+                                  font.title = c(9, "bold"),
+                                  font.tickslab = c(10),
+                                  font.legend.labs = c(10),
+                                  font.x = c(10, "bold"),
+                                  font.y = c(10, "bold"),
+                                  fontsize = 3,
+                                  legend.title = "PEA-(34:03)",
+                                  legend.labs= c("High", "Low"),
+                                  palette = c("black", "darkgrey")
+)
+
+os_val_PEA3403 <- survfit(Surv(OS_days/30.44, OS_event) ~ ifelse(`PEA-(34:03)` > median(`PEA-(34:03)`), "PEA_high", "PEA_low"), data=val_t1_norm_bc)
+summary(os_val_PEA3403)
+summary(os_val_PEA3403, times = 365)
+p_km_osval_PEA3403 <- ggsurvplot(os_val_PEA3403,
+                                 ylab = "Estimated OS",
+                                 xlab = "Months after CAR-T infusion",
+                                 break.time.by = 3,
+                                 xlim = c(0,26),
+                                 censor.size = 5,
+                                 pval = TRUE,
+                                 pval.coord = c(0.3, 0.05),
+                                 pval.size = 3,
+                                 size = 1.5,
+                                 axes.offset = F,
+                                 risk.table = F,
+                                 risk.table.title = "No. at risk",
+                                 risk.table.heigbcma.ht = .2,
+                                 survival.plot.heigbcma.ht = 0.9,
+                                 tables.y.text = FALSE,
+                                 tables.theme = theme_cleantable(base_size = 2),
+                                 conf.int = F,
+                                 ggtheme = theme_classic2(10),
+                                 font.title = c(9, "bold"),
+                                 font.tickslab = c(10),
+                                 font.legend.labs = c(10),
+                                 font.x = c(10, "bold"),
+                                 font.y = c(10, "bold"),
+                                 fontsize = 3,
+                                 legend.title = "PEA-(34:03)",
+                                 legend.labs= c("High", "Low"),
+                                 palette = c("black", "darkgrey")
+)
+
+
+pfs_val_AC221 <- survfit(Surv(PFS_days/30.44, PFS_event) ~ ifelse(`AC-(22:1)` > median(`AC-(22:1)`), "AC_high", "AC_low"), data=val_t1_norm_bc)
+summary(pfs_val_AC221)
+summary(pfs_val_AC221, times = 365)
+p_km_pfsval_AC221 <- ggsurvplot(pfs_val_AC221,
+                                ylab = "Estimated PFS",
+                                xlab = "Months after CAR-T infusion",
+                                break.time.by = 3,
+                                xlim = c(0,26),
+                                censor.size = 5,
+                                pval = TRUE,
+                                pval.coord = c(0.3, 0.05),
+                                pval.size = 3,
+                                size = 1.5,
+                                axes.offset = F,
+                                risk.table = F,
+                                risk.table.title = "No. at risk",
+                                risk.table.heigbcma.ht = .2,
+                                survival.plot.heigbcma.ht = 0.9,
+                                tables.y.text = FALSE,
+                                tables.theme = theme_cleantable(base_size = 2),
+                                conf.int = F,
+                                ggtheme = theme_classic2(10),
+                                font.title = c(9, "bold"),
+                                font.tickslab = c(10),
+                                font.legend.labs = c(10),
+                                font.x = c(10, "bold"),
+                                font.y = c(10, "bold"),
+                                fontsize = 3,
+                                legend.title = "AC-(22:1)",
+                                legend.labs= c("High", "Low"),
+                                palette = c("black", "darkgrey")
+)
+
+os_val_AC221 <- survfit(Surv(OS_days/30.44, OS_event) ~ ifelse(`AC-(22:1)` > median(`AC-(22:1)`), "AC_high", "AC_low"), data=val_t1_norm_bc)
+summary(os_val_AC221)
+summary(os_val_AC221, times = 365)
+p_km_osval_AC221 <- ggsurvplot(os_val_AC221,
+                               ylab = "Estimated OS",
+                               xlab = "Months after CAR-T infusion",
+                               break.time.by = 3,
+                               xlim = c(0,26),
+                               censor.size = 5,
+                               pval = TRUE,
+                               pval.coord = c(0.3, 0.05),
+                               pval.size = 3,
+                               size = 1.5,
+                               axes.offset = F,
+                               risk.table = F,
+                               risk.table.title = "No. at risk",
+                               risk.table.heigbcma.ht = .2,
+                               survival.plot.heigbcma.ht = 0.9,
+                               tables.y.text = FALSE,
+                               tables.theme = theme_cleantable(base_size = 2),
+                               conf.int = F,
+                               ggtheme = theme_classic2(10),
+                               font.title = c(9, "bold"),
+                               font.tickslab = c(10),
+                               font.legend.labs = c(10),
+                               font.x = c(10, "bold"),
+                               font.y = c(10, "bold"),
+                               fontsize = 3,
+                               legend.title = "AC-(22:1)",
+                               legend.labs= c("High", "Low"),
+                               palette = c("black", "darkgrey")
+)
+
+pfs_val_SMI181 <- survfit(Surv(PFS_days/30.44, PFS_event) ~ ifelse(`SM-(d18:1/18:02)` > median(`SM-(d18:1/18:02)`), "AC_high", "AC_low"), data=validation_master |> filter(Time == "Day 0"))
+summary(pfs_val_SMI181)
+summary(pfs_val_SMI181, times = 365)
+p_km_pfsval_SMI181 <- ggsurvplot(pfs_val_SMI181,
+                                 ylab = "Estimated PFS",
+                                 xlab = "Months after CAR-T infusion",
+                                 break.time.by = 3,
+                                 xlim = c(0,26),
+                                 censor.size = 5,
+                                 pval = TRUE,
+                                 pval.coord = c(0.3, 0.05),
+                                 pval.size = 3,
+                                 size = 1.5,
+                                 axes.offset = F,
+                                 risk.table = F,
+                                 risk.table.title = "No. at risk",
+                                 risk.table.heigbcma.ht = .2,
+                                 survival.plot.heigbcma.ht = 0.9,
+                                 tables.y.text = FALSE,
+                                 tables.theme = theme_cleantable(base_size = 2),
+                                 conf.int = F,
+                                 ggtheme = theme_classic2(10),
+                                 font.title = c(9, "bold"),
+                                 font.tickslab = c(10),
+                                 font.legend.labs = c(10),
+                                 font.x = c(10, "bold"),
+                                 font.y = c(10, "bold"),
+                                 fontsize = 3,
+                                 legend.title = "SM-(d18:1/18:02)",
+                                 legend.labs= c("High", "Low"),
+                                 palette = c("black", "darkgrey")
+)
+
+os_val_SMI181 <- survfit(Surv(OS_days/30.44, OS_event) ~ ifelse(`SM-(d18:1/18:02)` > median(`SM-(d18:1/18:02)`), "AC_high", "AC_low"), data=val_t1_norm_bc)
+summary(os_val_SMI181)
+summary(os_val_SMI181, times = 365)
+p_km_osval_SMI181 <- ggsurvplot(os_val_SMI181,
+                                ylab = "Estimated OS",
+                                xlab = "Months after CAR-T infusion",
+                                break.time.by = 3,
+                                xlim = c(0,26),
+                                censor.size = 5,
+                                pval = TRUE,
+                                pval.coord = c(0.3, 0.05),
+                                pval.size = 3,
+                                size = 1.5,
+                                axes.offset = F,
+                                risk.table = F,
+                                risk.table.title = "No. at risk",
+                                risk.table.heigbcma.ht = .2,
+                                survival.plot.heigbcma.ht = 0.9,
+                                tables.y.text = FALSE,
+                                tables.theme = theme_cleantable(base_size = 2),
+                                conf.int = F,
+                                ggtheme = theme_classic2(10),
+                                font.title = c(9, "bold"),
+                                font.tickslab = c(10),
+                                font.legend.labs = c(10),
+                                font.x = c(10, "bold"),
+                                font.y = c(10, "bold"),
+                                fontsize = 3,
+                                legend.title = "SM-(d18:1/18:02)",
+                                legend.labs= c("High", "Low"),
+                                palette = c("black", "darkgrey")
+)
+
+pfs_val_Plas <- survfit(Surv(PFS_days/30.44, PFS_event) ~ ifelse(`PlasEA-(38:06)` > median(`PlasEA-(38:06)`), "AC_high", "AC_low"), data=validation_master |> filter(Time == "Day 0"))
+summary(pfs_val_Plas)
+summary(pfs_val_Plas, times = 365)
+p_km_pfsval_Plas <- ggsurvplot(pfs_val_Plas,
+                               ylab = "Estimated PFS",
+                               xlab = "Months after CAR-T infusion",
+                               break.time.by = 3,
+                               xlim = c(0,26),
+                               censor.size = 5,
+                               pval = TRUE,
+                               pval.coord = c(0.3, 0.05),
+                               pval.size = 3,
+                               size = 1.5,
+                               axes.offset = F,
+                               risk.table = F,
+                               risk.table.title = "No. at risk",
+                               risk.table.heigbcma.ht = .2,
+                               survival.plot.heigbcma.ht = 0.9,
+                               tables.y.text = FALSE,
+                               tables.theme = theme_cleantable(base_size = 2),
+                               conf.int = F,
+                               ggtheme = theme_classic2(10),
+                               font.title = c(9, "bold"),
+                               font.tickslab = c(10),
+                               font.legend.labs = c(10),
+                               font.x = c(10, "bold"),
+                               font.y = c(10, "bold"),
+                               fontsize = 3,
+                               legend.title = "PlasEA-(38:06)",
+                               legend.labs= c("High", "Low"),
+                               palette = c("black", "darkgrey")
+)
+
+os_val_Plas <- survfit(Surv(OS_days/30.44, OS_event) ~ ifelse(`PlasEA-(38:06)` > median(`PlasEA-(38:06)`), "AC_high", "AC_low"), data=val_t1_norm_bc)
+summary(os_val_Plas)
+summary(os_val_Plas, times = 365)
+p_km_osval_Plas <- ggsurvplot(os_val_Plas,
+                              ylab = "Estimated OS",
+                              xlab = "Months after CAR-T infusion",
+                              break.time.by = 3,
+                              xlim = c(0,26),
+                              censor.size = 5,
+                              pval = TRUE,
+                              pval.coord = c(0.3, 0.05),
+                              pval.size = 3,
+                              size = 1.5,
+                              axes.offset = F,
+                              risk.table = F,
+                              risk.table.title = "No. at risk",
+                              risk.table.heigbcma.ht = .2,
+                              survival.plot.heigbcma.ht = 0.9,
+                              tables.y.text = FALSE,
+                              tables.theme = theme_cleantable(base_size = 2),
+                              conf.int = F,
+                              ggtheme = theme_classic2(10),
+                              font.title = c(9, "bold"),
+                              font.tickslab = c(10),
+                              font.legend.labs = c(10),
+                              font.x = c(10, "bold"),
+                              font.y = c(10, "bold"),
+                              fontsize = 3,
+                              legend.title = "PlasEA-(38:06)",
+                              legend.labs= c("High", "Low"),
+                              palette = c("black", "darkgrey")
+)

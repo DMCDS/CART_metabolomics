@@ -1815,7 +1815,7 @@ group_colors_AT <- c(
 ggplot(surv_at_distr, aes(x = met_group, y = percentage, fill = group)) +
   geom_bar(stat = "identity") +
   labs(x = "", y = "Metabolites [%]", fill = "Group") +
-  scale_fill_manual(values = group_colors) +
+  scale_fill_manual(values = group_colors_AT) +
   theme_classic() +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1))
 
